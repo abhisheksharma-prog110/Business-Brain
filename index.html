@@ -1,0 +1,2264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>BusinessBrain AI — Data Intelligence</title>
+<meta name="description" content="Upload your sales data and get instant AI-powered business intelligence."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#080c14;--bg2:#0d1321;--card:rgba(255,255,255,.04);--cardh:rgba(255,255,255,.07);
+  --bdr:rgba(255,255,255,.08);--bdrh:rgba(99,102,241,.4);
+  --accent:#6366f1;--glow:rgba(99,102,241,.25);--a2:#8b5cf6;--a3:#06b6d4;
+  --green:#10b981;--red:#ef4444;--yellow:#f59e0b;--orange:#f97316;
+  --t1:#f1f5f9;--t2:#94a3b8;--t3:#475569;--sw:260px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 80% 60% at 10% -10%,rgba(99,102,241,.12) 0%,transparent 60%),
+             radial-gradient(ellipse 60% 50% at 90% 110%,rgba(139,92,246,.10) 0%,transparent 60%)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:4px}
+
+/* ── SIDEBAR ── */
+.sidebar{position:fixed;left:0;top:0;width:var(--sw);height:100vh;background:rgba(13,19,33,.96);
+  backdrop-filter:blur(20px);border-right:1px solid var(--bdr);padding:24px 14px;
+  display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;padding:0 6px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--a2));
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;box-shadow:0 0 20px var(--glow);flex-shrink:0}
+.logo-text{font-size:17px;font-weight:700}.logo-text span{color:var(--accent)}
+.nav-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--t3);padding:0 10px;margin:16px 0 5px;display:block}
+.menu{list-style:none}
+.menu li{margin:2px 0}
+.menu a{display:flex;align-items:center;gap:11px;color:var(--t2);text-decoration:none;
+  padding:10px 12px;border-radius:10px;transition:all .2s;font-size:13.5px;font-weight:500;cursor:pointer}
+.menu a .ico{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.menu a:hover{background:var(--cardh);color:var(--t1)}
+.menu a.active{background:rgba(99,102,241,.15);color:#fff;border:1px solid rgba(99,102,241,.25)}
+.menu a .bdg{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+.menu a .bdg.green{background:var(--green)}
+.sf{margin-top:auto;padding:13px;background:var(--card);border:1px solid var(--bdr);border-radius:12px;flex-shrink:0;margin-top:20px}
+.sf-name{font-size:13px;font-weight:600}.sf-role{font-size:11px;color:var(--t3);margin-top:2px}
+.avatar{width:33px;height:33px;background:linear-gradient(135deg,var(--accent),var(--a2));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.data-status{margin-top:12px;padding:10px 12px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;font-size:11.5px}
+.data-status .ds-label{color:var(--t3);margin-bottom:3px}
+.data-status .ds-val{color:var(--t1);font-weight:600}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sw);padding:28px 32px;min-height:100vh;position:relative;z-index:1}
+.page{display:none}.page.active{display:block}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px}
+.topbar h1{font-size:23px;font-weight:800;letter-spacing:-.5px}
+.topbar p{color:var(--t2);font-size:13px;margin-top:3px}
+.tr{display:flex;align-items:center;gap:11px}
+.chip{display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--bdr);
+  border-radius:20px;padding:7px 14px;font-size:12px;cursor:pointer;transition:all .2s;color:var(--t2)}
+.chip:hover{border-color:var(--bdrh);background:var(--cardh);color:var(--t1)}
+.live-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.slbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--t3);margin-bottom:11px}
+
+/* ── CARDS ── */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--bdr);border-radius:16px;padding:19px;position:relative;overflow:hidden;transition:all .3s;cursor:default}
+.card:hover{border-color:var(--bdrh);transform:translateY(-3px);box-shadow:0 18px 40px rgba(0,0,0,.3)}
+.card-ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:13px}
+.ic-p{background:rgba(99,102,241,.15)}.ic-g{background:rgba(16,185,129,.15)}
+.ic-c{background:rgba(6,182,212,.15)}.ic-a{background:rgba(245,158,11,.15)}.ic-r{background:rgba(249,115,22,.15)}
+.card-lbl{color:var(--t2);font-size:12px;font-weight:500;margin-bottom:6px}
+.card-val{font-size:26px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#f1f5f9,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.card-delta{font-size:11.5px;font-weight:600;margin-top:7px;display:flex;align-items:center;gap:3px}
+.up{color:var(--green)}.dn{color:var(--red)}.neu{color:var(--t3)}
+.sparkline{position:absolute;right:13px;bottom:13px;opacity:.35}
+
+/* ── PANEL ── */
+.panel{background:var(--card);border:1px solid var(--bdr);border-radius:16px;padding:22px;transition:border-color .2s;margin-bottom:20px}
+.panel:hover{border-color:rgba(255,255,255,.11)}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.ph h2{font-size:15.5px;font-weight:700}
+.ptabs{display:flex;background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:8px;padding:3px;gap:2px}
+.ptab{padding:4px 10px;font-size:11px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--t3);transition:all .2s;border:none;background:none;font-family:'Inter',sans-serif}
+.ptab.active{background:var(--accent);color:#fff}
+.cw{position:relative}.cw canvas{width:100%!important}
+
+/* ── GRIDS ── */
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:20px}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:18px;margin-bottom:20px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:20px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:20px}
+
+/* ── TABLE ── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:1px solid var(--bdr)}
+th{padding:10px 13px;text-align:left;font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px}
+td{padding:12px 13px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s}
+tbody tr:hover td{background:rgba(255,255,255,.03)}
+tbody tr:last-child td{border-bottom:none}
+.fw6{font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.b-g{background:rgba(16,185,129,.12);color:var(--green)}.b-y{background:rgba(245,158,11,.12);color:var(--yellow)}
+.b-r{background:rgba(239,68,68,.12);color:var(--red)}.b-p{background:rgba(99,102,241,.12);color:var(--accent)}
+.b-c{background:rgba(6,182,212,.12);color:var(--a3)}.b-o{background:rgba(249,115,22,.12);color:var(--orange)}
+.tbar{width:70px;height:5px;background:rgba(255,255,255,.07);border-radius:3px}
+.tbar-f{height:100%;border-radius:3px}
+.prog-wrap{background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden;flex:1}
+.prog-fill{height:100%;border-radius:4px;transition:width .9s ease}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* ── AI PANEL ── */
+.ai-panel{background:linear-gradient(160deg,rgba(99,102,241,.08) 0%,var(--card) 100%);border:1px solid rgba(99,102,241,.2)}
+.ai-orb{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--a2));border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 0 24px var(--glow);animation:orb 3s ease-in-out infinite;flex-shrink:0}
+@keyframes orb{0%,100%{box-shadow:0 0 20px var(--glow)}50%{box-shadow:0 0 40px rgba(99,102,241,.45)}}
+.insight{background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:11px;padding:13px 15px;margin-bottom:9px;transition:all .2s;cursor:default}
+.insight:hover{border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.06)}
+.insight strong{display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:5px}
+.insight p{font-size:12.5px;color:var(--t2);line-height:1.6}
+.insight.crit{border-left:3px solid var(--red)}.insight.warn{border-left:3px solid var(--yellow)}
+.insight.good{border-left:3px solid var(--green)}.insight.tip{border-left:3px solid var(--accent)}
+.insight.action{border-left:3px solid var(--orange)}
+
+/* ── CHAT ── */
+#chat-messages,#ai-chat-messages{display:flex;flex-direction:column;gap:9px;max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:3px}
+.bubble{max-width:86%;padding:11px 15px;border-radius:13px;font-size:13px;line-height:1.65;animation:fadeUp .3s ease;white-space:pre-wrap}
+@keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.b-user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:3px}
+.b-ai{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid var(--bdr);color:var(--t1);border-bottom-left-radius:3px}
+.typing-wrap{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid var(--bdr);border-radius:13px;border-bottom-left-radius:3px;padding:12px 17px}
+.dots{display:flex;gap:5px}.dots span{width:6px;height:6px;background:var(--t3);border-radius:50%;animation:bounce 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.chat-row{display:flex;gap:9px}
+.ci{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--bdr);border-radius:11px;padding:11px 15px;color:var(--t1);font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+.ci::placeholder{color:var(--t3)}.ci:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.send-btn{padding:11px 18px;background:linear-gradient(135deg,var(--accent),var(--a2));color:#fff;border:none;border-radius:11px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.send-btn:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 8px 20px var(--glow)}
+.qp-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.qp{padding:5px 11px;background:rgba(99,102,241,.10);border:1px solid rgba(99,102,241,.2);border-radius:20px;font-size:11.5px;color:var(--accent);cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif}
+.qp:hover{background:rgba(99,102,241,.2);border-color:var(--accent)}
+.stat-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.stat-row:last-child{border-bottom:none}
+.inp{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--bdr);border-radius:10px;padding:9px 13px;color:var(--t1);font-family:'Inter',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+.inp:focus{border-color:var(--accent)}
+.btn{padding:9px 19px;background:linear-gradient(135deg,var(--accent),var(--a2));color:#fff;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--bdr);color:var(--t2)}
+.btn-ghost:hover{border-color:var(--bdrh);background:rgba(255,255,255,.09);color:var(--t1);transform:none}
+.btn-sm{padding:6px 14px;font-size:12px;border-radius:8px}
+.toggle{width:44px;height:24px;background:var(--accent);border-radius:12px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle::after{content:'';position:absolute;right:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:right .2s}
+.toggle.off{background:rgba(255,255,255,.12)}.toggle.off::after{right:auto;left:3px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:15px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.setting-row:last-child{border-bottom:none}
+
+/* ═══════════════════════════════════
+   UPLOAD WIZARD
+═══════════════════════════════════ */
+.wizard-steps{display:flex;align-items:center;gap:0;margin-bottom:32px}
+.ws{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--t3)}
+.ws.active{color:var(--t1)}.ws.done{color:var(--green)}
+.ws-num{width:26px;height:26px;border-radius:50%;border:2px solid var(--t3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.ws.active .ws-num{border-color:var(--accent);background:rgba(99,102,241,.15);color:var(--accent)}
+.ws.done .ws-num{border-color:var(--green);background:rgba(16,185,129,.15);color:var(--green)}
+.ws-line{flex:1;height:1px;background:var(--bdr);margin:0 10px}
+.ws-line.done{background:var(--green)}
+
+/* DROP ZONE */
+.drop-zone{border:2px dashed rgba(99,102,241,.4);border-radius:18px;padding:56px 40px;text-align:center;transition:all .3s;cursor:pointer;background:rgba(99,102,241,.04);position:relative}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(99,102,241,.08)}
+.drop-icon{font-size:52px;margin-bottom:18px}
+.drop-title{font-size:20px;font-weight:700;margin-bottom:8px}
+.drop-sub{font-size:13px;color:var(--t2);margin-bottom:24px}
+.drop-formats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.fmt-chip{padding:4px 12px;border:1px solid var(--bdr);border-radius:20px;font-size:11.5px;color:var(--t3)}
+#file-input{display:none}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* PREVIEW TABLE */
+.preview-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--bdr);max-height:180px;overflow-y:auto}
+.preview-wrap table{min-width:500px}
+.preview-wrap th{background:rgba(255,255,255,.04);font-size:11px}
+.preview-wrap td{font-size:12px;padding:8px 12px}
+
+/* COLUMN MAPPING */
+.col-map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.col-card{background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:12px;padding:14px}
+.col-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.col-name{font-size:13px;font-weight:600;color:var(--t1)}
+.conf-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px}
+.conf-high{background:rgba(16,185,129,.15);color:var(--green)}
+.conf-med{background:rgba(245,158,11,.15);color:var(--yellow)}
+.conf-low{background:rgba(239,68,68,.15);color:var(--red)}
+.col-select{width:100%;background:rgba(255,255,255,.07);border:1px solid var(--bdr);border-radius:8px;padding:8px 10px;color:var(--t1);font-family:'Inter',sans-serif;font-size:12px;outline:none}
+.col-select:focus{border-color:var(--accent)}
+.col-select option{background:#0d1321}
+
+/* PROCESSING */
+.proc-steps{display:flex;flex-direction:column;gap:12px;max-width:480px;margin:0 auto}
+.proc-step{display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:11px;transition:all .3s}
+.proc-step.running{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.06)}
+.proc-step.done{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.04)}
+.proc-step.error{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.04)}
+.ps-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:rgba(255,255,255,.06)}
+.ps-label{font-size:13px;font-weight:600}.ps-sub{font-size:11.5px;color:var(--t3);margin-top:2px}
+.spin{animation:spin .8s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* RESULTS */
+.result-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
+.rc{background:var(--card);border:1px solid var(--bdr);border-radius:14px;padding:16px;text-align:center}
+.rc-val{font-size:20px;font-weight:800;margin-bottom:4px}
+.rc-lbl{font-size:11px;color:var(--t3)}
+.hero-insight{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.08));border:1px solid rgba(99,102,241,.25);border-radius:14px;padding:22px;margin-bottom:20px;text-align:center}
+.hero-insight h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.hero-insight p{font-size:13px;color:var(--t2);line-height:1.7;max-width:580px;margin:0 auto}
+
+/* PRODUCT CARD */
+.prod-card{background:var(--card);border:1px solid var(--bdr);border-radius:14px;padding:17px;transition:all .25s;cursor:default;display:flex;flex-direction:column;gap:9px}
+.prod-card:hover{border-color:var(--bdrh);transform:translateY(-2px)}
+
+/* REPORT CARD */
+.rep-card{display:flex;align-items:center;gap:13px;padding:15px;background:var(--card);border:1px solid var(--bdr);border-radius:13px;margin-bottom:10px;transition:all .2s;cursor:pointer}
+.rep-card:hover{border-color:var(--bdrh);background:var(--cardh)}
+.rep-ico{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+
+/* NO DATA BANNER */
+.no-data{text-align:center;padding:48px 24px;color:var(--t3)}
+.no-data .nd-icon{font-size:44px;margin-bottom:14px}
+.no-data h3{font-size:16px;font-weight:700;color:var(--t2);margin-bottom:8px}
+.no-data p{font-size:13px;margin-bottom:18px}
+
+/* ── PLAN CARDS ── */
+.plan-card{background:var(--card);border:1px solid var(--bdr);border-radius:18px;padding:20px;
+  display:flex;flex-direction:column;gap:0;position:relative;overflow:hidden;
+  transition:all .3s ease}
+.plan-card:hover{border-color:var(--bdrh);transform:translateY(-4px);box-shadow:0 24px 48px rgba(0,0,0,.3)}
+.plan-card-featured{background:linear-gradient(160deg,rgba(99,102,241,.12) 0%,var(--card) 100%);border-color:rgba(99,102,241,.35);box-shadow:0 0 40px rgba(99,102,241,.12)}
+.plan-card-gold{background:linear-gradient(160deg,rgba(245,158,11,.08) 0%,var(--card) 100%);border-color:rgba(245,158,11,.3)}
+.plan-card-purple{background:linear-gradient(160deg,rgba(139,92,246,.1) 0%,var(--card) 100%);border-color:rgba(139,92,246,.3)}
+.plan-popular-ribbon{position:absolute;top:14px;right:-22px;background:linear-gradient(135deg,var(--accent),var(--a2));color:#fff;font-size:10px;font-weight:700;padding:4px 28px;transform:rotate(35deg);letter-spacing:.5px;white-space:nowrap}
+.plan-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
+.plan-icon{font-size:28px;margin-bottom:8px}
+.plan-name{font-size:18px;font-weight:800;margin-bottom:5px}
+.plan-desc{font-size:11.5px;color:var(--t3);margin-bottom:14px;line-height:1.5}
+.plan-price{display:flex;align-items:baseline;gap:3px;margin-bottom:4px}
+.plan-amt{font-size:28px;font-weight:800;background:linear-gradient(135deg,#f1f5f9,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.plan-period{font-size:12px;color:var(--t3)}
+.plan-equiv{font-size:11.5px;color:var(--t3);margin-bottom:14px;min-height:16px}
+.plan-divider{height:1px;background:var(--bdr);margin:12px 0 14px}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:7px;flex:1;margin-bottom:18px}
+.plan-features li{font-size:12px;display:flex;align-items:center;gap:7px}
+.pf-yes{color:var(--green);font-weight:700;font-size:13px;flex-shrink:0}
+.pf-no{color:var(--t3);font-size:13px;flex-shrink:0}
+.plan-btn{width:100%;padding:11px;border:none;border-radius:11px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:auto}
+.plan-btn-primary{background:linear-gradient(135deg,var(--accent),var(--a2));color:#fff}
+.plan-btn-primary:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 8px 20px var(--glow)}
+.plan-btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--bdr);color:var(--t2)}
+.plan-btn-ghost:hover{border-color:var(--accent);color:var(--t1);background:rgba(99,102,241,.08)}
+@media(max-width:1200px){#plan-cards-grid{grid-template-columns:repeat(3,1fr)!important}}
+@media(max-width:860px){#plan-cards-grid{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:560px){#plan-cards-grid{grid-template-columns:1fr!important}}
+.m-step-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.15);transition:all .3s}
+.m-step-dot.active{background:var(--accent);box-shadow:0 0 8px var(--glow)}
+
+/* RESPONSIVE */
+@media(max-width:1100px){:root{--sw:220px}.cards,.result-cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:860px){.g21,.g12,.g3,.g2{grid-template-columns:1fr}}
+@media(max-width:700px){:root{--sw:0px}.sidebar{display:none}.main{margin-left:0;padding:16px}.cards{grid-template-columns:1fr}.result-cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- ════ SIDEBAR ════ -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">BB</div>
+    <div class="logo-text">Business<span>Brain</span></div>
+  </div>
+
+  <span class="nav-lbl">Data</span>
+  <ul class="menu">
+    <li><a onclick="nav('upload',this)" id="nav-upload"><span class="ico">📤</span> Upload Data <span class="bdg green" id="upload-bdg">New</span></a></li>
+  </ul>
+
+  <span class="nav-lbl">Overview</span>
+  <ul class="menu">
+    <li><a class="active" onclick="nav('dashboard',this)" id="nav-dashboard"><span class="ico">📊</span> Dashboard</a></li>
+    <li><a onclick="nav('sales',this)" id="nav-sales"><span class="ico">📈</span> Sales Analytics</a></li>
+    <li><a onclick="nav('customers',this)" id="nav-customers"><span class="ico">👥</span> Customers</a></li>
+    <li><a onclick="nav('products',this)" id="nav-products"><span class="ico">📦</span> Products</a></li>
+  </ul>
+
+  <span class="nav-lbl">Intelligence</span>
+  <ul class="menu">
+    <li><a onclick="nav('ai',this)" id="nav-ai"><span class="ico">🤖</span> AI Advisor <span class="bdg" id="ai-bdg">3</span></a></li>
+    <li><a onclick="nav('reports',this)" id="nav-reports"><span class="ico">📋</span> Reports</a></li>
+    <li><a onclick="nav('plans',this)" id="nav-plans"><span class="ico">💎</span> Plans &amp; Pricing <span class="bdg" style="background:linear-gradient(135deg,#f59e0b,#f97316);font-size:9px">SAVE 50%</span></a></li>
+    <li><a onclick="nav('settings',this)" id="nav-settings"><span class="ico">⚙️</span> Settings</a></li>
+  </ul>
+
+  <div class="data-status" id="data-status-box" style="display:none">
+    <div class="ds-label">Data loaded</div>
+    <div class="ds-val" id="ds-file">—</div>
+    <div class="ds-val" style="font-size:11px;color:var(--t3);margin-top:2px" id="ds-rows">— rows</div>
+  </div>
+
+  <div class="sf">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="avatar">BO</div>
+      <div><div class="sf-name">Business Owner</div><div class="sf-role">Admin · Pro Plan</div></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ════ MAIN ════ -->
+<main class="main">
+
+<!-- ══════════════════════════════════════
+     PAGE: UPLOAD WIZARD
+══════════════════════════════════════ -->
+<div class="page" id="page-upload">
+  <div class="topbar">
+    <div><h1>Upload Business Data</h1><p>CSV or Excel → Auto-detect → Clean → Analyse → AI Insights</p></div>
+    <div class="tr">
+      <div class="chip" onclick="loadDemoData()">🎲 Load Demo CSV</div>
+    </div>
+  </div>
+
+  <!-- STEP INDICATORS -->
+  <div class="wizard-steps" id="wizard-steps">
+    <div class="ws active" id="ws-1"><div class="ws-num">1</div><span>Upload File</span></div>
+    <div class="ws-line" id="wl-1"></div>
+    <div class="ws" id="ws-2"><div class="ws-num">2</div><span>Map Columns</span></div>
+    <div class="ws-line" id="wl-2"></div>
+    <div class="ws" id="ws-3"><div class="ws-num">3</div><span>Processing</span></div>
+    <div class="ws-line" id="wl-3"></div>
+    <div class="ws" id="ws-4"><div class="ws-num">4</div><span>Results</span></div>
+  </div>
+
+  <!-- STEP 1: DROP ZONE -->
+  <div id="step-1">
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".csv,.xlsx,.xls" onchange="handleFile(this.files[0])"/>
+      <div class="drop-icon">📂</div>
+      <div class="drop-title">Drop your sales file here</div>
+      <div class="drop-sub">Upload a CSV or Excel file with your sales/transaction data.<br>Any structure is fine — we'll auto-detect the columns.</div>
+      <div class="drop-formats">
+        <span class="fmt-chip">📄 .CSV</span>
+        <span class="fmt-chip">📊 .XLSX</span>
+        <span class="fmt-chip">📊 .XLS</span>
+      </div>
+    </div>
+
+    <div id="file-preview" style="display:none;margin-top:20px">
+      <div class="panel" style="margin-bottom:0">
+        <div class="ph">
+          <h2 id="preview-title">Preview</h2>
+          <div style="display:flex;gap:8px">
+            <span class="badge b-g" id="preview-rows-badge"></span>
+            <span class="badge b-p" id="preview-cols-badge"></span>
+          </div>
+        </div>
+        <div class="preview-wrap"><table id="preview-table"></table></div>
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button class="btn" onclick="goToStep2()">Detect Columns →</button>
+          <button class="btn btn-ghost" onclick="resetUpload()">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: COLUMN MAPPING -->
+  <div id="step-2" style="display:none">
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph"><h2>Column Detection</h2><span style="font-size:12px;color:var(--t2)">AI detected your columns — review and confirm or remap</span></div>
+      <div class="col-map-grid" id="col-map-grid"></div>
+      <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="goToStep3()">✓ Confirm & Process</button>
+        <button class="btn btn-ghost" onclick="goToStep(1)">← Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: PROCESSING -->
+  <div id="step-3" style="display:none">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:32px;margin-bottom:10px" id="proc-emoji">⚙️</div>
+      <div style="font-size:17px;font-weight:700" id="proc-title">Processing your data…</div>
+      <div style="font-size:13px;color:var(--t2);margin-top:5px" id="proc-sub">This takes just a moment</div>
+    </div>
+    <div class="proc-steps" id="proc-steps"></div>
+  </div>
+
+  <!-- STEP 4: RESULTS -->
+  <div id="step-4" style="display:none">
+    <div class="hero-insight" id="hero-insight">
+      <div style="font-size:28px;margin-bottom:10px">🎉</div>
+      <h3 id="hero-title">Analysis Complete!</h3>
+      <p id="hero-desc">Your data has been processed and AI insights are ready.</p>
+    </div>
+
+    <div class="result-cards" id="result-cards"></div>
+
+    <div class="slbl">Top AI Recommendations</div>
+    <div id="result-insights" style="margin-bottom:20px"></div>
+
+    <div class="slbl">Top Products by Revenue</div>
+    <div class="panel" style="margin-bottom:20px">
+      <div class="tw"><table id="result-products-table">
+        <thead><tr><th>Product</th><th>Revenue</th><th>Profit</th><th>Margin</th><th>Units</th><th>Performance</th></tr></thead>
+        <tbody id="result-products-body"></tbody>
+      </table></div>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn" onclick="nav('dashboard',document.getElementById('nav-dashboard'))">📊 View Full Dashboard →</button>
+      <button class="btn" onclick="nav('ai',document.getElementById('nav-ai'))">🤖 Talk to AI Advisor →</button>
+      <button class="btn btn-ghost" onclick="resetUpload()">Upload Different File</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: DASHBOARD
+══════════════════════════════════════ -->
+<div class="page active" id="page-dashboard">
+  <div class="topbar">
+    <div><h1>Business Dashboard</h1><p id="db-subtitle">AI-powered intelligence · September 2026</p></div>
+    <div class="tr">
+      <div class="chip"><div class="live-dot"></div><span id="db-data-label">Sample Data</span></div>
+      <div class="chip" onclick="nav('upload',document.getElementById('nav-upload'))">📤 Upload Data</div>
+      <div class="avatar">BO</div>
+    </div>
+  </div>
+
+  <!-- no-data banner when no upload -->
+  <div id="db-no-data" class="no-data" style="display:none">
+    <div class="nd-icon">📂</div>
+    <h3>No data uploaded yet</h3>
+    <p>Upload a CSV or Excel file to see your real business metrics.</p>
+    <button class="btn" onclick="nav('upload',document.getElementById('nav-upload'))">📤 Upload Data</button>
+  </div>
+
+  <div id="db-content">
+    <div class="slbl">Key Metrics</div>
+    <section class="cards">
+      <div class="card"><div class="card-ico ic-p">💰</div><div class="card-lbl">Total Revenue</div><div class="card-val" id="kpi-revenue">—</div><div class="card-delta" id="kpi-revenue-d"></div></div>
+      <div class="card"><div class="card-ico ic-g">📈</div><div class="card-lbl">Total Profit</div><div class="card-val" id="kpi-profit">—</div><div class="card-delta" id="kpi-profit-d"></div></div>
+      <div class="card"><div class="card-ico ic-c">👥</div><div class="card-lbl">Customers</div><div class="card-val" id="kpi-customers">—</div><div class="card-delta" id="kpi-customers-d"></div></div>
+      <div class="card"><div class="card-ico ic-a">📊</div><div class="card-lbl">Avg Margin</div><div class="card-val" id="kpi-margin">—</div><div class="card-delta" id="kpi-margin-d"></div></div>
+    </section>
+
+    <div class="slabel" style="display:none"></div>
+    <div class="g21">
+      <div class="panel" style="margin-bottom:0">
+        <div class="ph">
+          <h2>Revenue &amp; Profit Trend</h2>
+          <div class="ptabs" id="db-period-tabs">
+            <button class="ptab active" onclick="dbSwitchPeriod(this,'all')">All</button>
+            <button class="ptab" onclick="dbSwitchPeriod(this,'6m')">6M</button>
+            <button class="ptab" onclick="dbSwitchPeriod(this,'3m')">3M</button>
+          </div>
+        </div>
+        <div class="cw" style="height:210px"><canvas id="dbRevChart"></canvas></div>
+      </div>
+      <div class="panel ai-panel" style="margin-bottom:0">
+        <div style="display:flex;align-items:center;gap:11px;margin-bottom:16px">
+          <div class="ai-orb">AI</div>
+          <div><div style="font-size:15px;font-weight:700">AI Business Advisor</div><div style="font-size:11px;color:var(--t3)" id="ai-panel-sub">Showing sample insights</div></div>
+        </div>
+        <div id="db-insights">
+          <div class="insight tip"><strong>💡 Upload your data</strong><p>Upload a CSV or Excel file and I'll analyse your real revenue, profit, products, customers and give personalised recommendations.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="slbl" style="margin-top:20px">Product Performance</div>
+    <div class="panel">
+      <div class="ph"><h2>Product Breakdown</h2></div>
+      <div class="tw"><table>
+        <thead><tr><th>Product</th><th>Units</th><th>Revenue</th><th>Profit</th><th>Margin</th><th>Trend</th><th>Status</th></tr></thead>
+        <tbody id="db-products-body"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: SALES ANALYTICS
+══════════════════════════════════════ -->
+<div class="page" id="page-sales">
+  <div class="topbar"><div><h1>Sales Analytics</h1><p>Detailed breakdown of your sales performance</p></div><div class="tr"><div class="chip">📅 All Periods</div></div></div>
+  <div id="sales-no-data" class="no-data"><div class="nd-icon">📈</div><h3>No data uploaded yet</h3><p>Upload sales data to see detailed analytics.</p><button class="btn" onclick="nav('upload',document.getElementById('nav-upload'))">📤 Upload Data</button></div>
+  <div id="sales-content" style="display:none">
+    <div class="slbl">Sales Overview</div>
+    <section class="cards">
+      <div class="card"><div class="card-ico ic-p">🛒</div><div class="card-lbl">Total Orders</div><div class="card-val" id="sa-orders">—</div><div class="card-delta" id="sa-orders-d"></div></div>
+      <div class="card"><div class="card-ico ic-g">💵</div><div class="card-lbl">Avg Order Value</div><div class="card-val" id="sa-aov">—</div><div class="card-delta" id="sa-aov-d"></div></div>
+      <div class="card"><div class="card-ico ic-c">🔁</div><div class="card-lbl">Repeat Buyers</div><div class="card-val" id="sa-repeat">—</div><div class="card-delta" id="sa-repeat-d"></div></div>
+      <div class="card"><div class="card-ico ic-a">📦</div><div class="card-lbl">Products Tracked</div><div class="card-val" id="sa-prods">—</div><div class="card-delta" id="sa-prods-d"></div></div>
+    </section>
+    <div class="slbl">Monthly Trend</div>
+    <div class="panel"><div class="ph"><h2>Revenue vs Profit by Month</h2><div class="ptabs"><button class="ptab active" onclick="switchSalesType(this,'bar')">Bar</button><button class="ptab" onclick="switchSalesType(this,'line')">Line</button></div></div><div class="cw" style="height:220px"><canvas id="salesTrendChart"></canvas></div></div>
+    <div class="g21">
+      <div class="panel" style="margin-bottom:0"><div class="ph"><h2>Category Split</h2></div><div class="cw" style="height:200px"><canvas id="salesCatChart"></canvas></div></div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="ph"><h2>Top Regions</h2></div>
+        <div id="sales-regions"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: CUSTOMERS
+══════════════════════════════════════ -->
+<div class="page" id="page-customers">
+  <div class="topbar"><div><h1>Customers</h1><p>Analyse your customer base and retention</p></div></div>
+  <div id="cust-no-data" class="no-data"><div class="nd-icon">👥</div><h3>No data uploaded yet</h3><p>Upload data with a Customer column to see customer analytics.</p><button class="btn" onclick="nav('upload',document.getElementById('nav-upload'))">📤 Upload Data</button></div>
+  <div id="cust-content" style="display:none">
+    <div class="slbl">Customer Metrics</div>
+    <section class="cards">
+      <div class="card"><div class="card-ico ic-c">👥</div><div class="card-lbl">Total Customers</div><div class="card-val" id="cu-total">—</div></div>
+      <div class="card"><div class="card-ico ic-g">🔁</div><div class="card-lbl">Repeat Customers</div><div class="card-val" id="cu-repeat">—</div><div class="card-delta up" id="cu-repeat-pct"></div></div>
+      <div class="card"><div class="card-ico ic-p">💎</div><div class="card-lbl">Avg Customer Value</div><div class="card-val" id="cu-ltv">—</div></div>
+      <div class="card"><div class="card-ico ic-a">🏆</div><div class="card-lbl">Top Customer Revenue</div><div class="card-val" id="cu-top">—</div></div>
+    </section>
+    <div class="g21">
+      <div class="panel" style="margin-bottom:0"><div class="ph"><h2>Customer Growth by Month</h2></div><div class="cw" style="height:200px"><canvas id="custGrowthChart"></canvas></div></div>
+      <div class="panel" style="margin-bottom:0"><div class="ph"><h2>Retention</h2></div>
+        <div class="cw" style="height:150px"><canvas id="custRetChart"></canvas></div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px"><div class="legend-dot" style="background:var(--accent)"></div><span id="ret-new-lbl">New customers</span></div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px"><div class="legend-dot" style="background:var(--green)"></div><span id="ret-rep-lbl">Repeat customers</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="slbl">Customer Leaderboard</div>
+    <div class="panel"><div class="tw"><table>
+      <thead><tr><th>#</th><th>Customer</th><th>Orders</th><th>Total Spent</th><th>Avg Order</th><th>Segment</th></tr></thead>
+      <tbody id="cust-table-body"></tbody>
+    </table></div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: PRODUCTS
+══════════════════════════════════════ -->
+<div class="page" id="page-products">
+  <div class="topbar"><div><h1>Products</h1><p>Performance and inventory insights</p></div></div>
+  <div id="prod-no-data" class="no-data"><div class="nd-icon">📦</div><h3>No data uploaded yet</h3><p>Upload data with a Product column to see product analytics.</p><button class="btn" onclick="nav('upload',document.getElementById('nav-upload'))">📤 Upload Data</button></div>
+  <div id="prod-content" style="display:none">
+    <div class="slbl">Product Overview</div>
+    <section class="cards">
+      <div class="card"><div class="card-ico ic-p">📦</div><div class="card-lbl">Products Tracked</div><div class="card-val" id="pr-count">—</div></div>
+      <div class="card"><div class="card-ico ic-g">🏆</div><div class="card-lbl">Best Product</div><div class="card-val" id="pr-best" style="font-size:14px;letter-spacing:0">—</div></div>
+      <div class="card"><div class="card-ico ic-r">⚠️</div><div class="card-lbl">Worst Margin</div><div class="card-val" id="pr-worst" style="font-size:14px;letter-spacing:0">—</div></div>
+      <div class="card"><div class="card-ico ic-a">📊</div><div class="card-lbl">Avg Margin</div><div class="card-val" id="pr-margin">—</div></div>
+    </section>
+    <div class="slbl">Product Cards</div>
+    <div class="g2" id="prod-cards" style="margin-bottom:20px"></div>
+    <div class="slbl">Revenue vs Profit Comparison</div>
+    <div class="panel"><div class="cw" style="height:230px"><canvas id="prodBarChart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: AI ADVISOR
+══════════════════════════════════════ -->
+<div class="page" id="page-ai">
+  <div class="topbar"><div><h1>AI Business Advisor</h1><p id="ai-subtitle">Upload your data for personalised insights</p></div><div class="tr"><div class="chip"><div class="live-dot"></div>AI Online</div></div></div>
+  <div class="g21">
+    <div class="panel ai-panel" style="margin-bottom:0">
+      <div style="display:flex;align-items:center;gap:13px;margin-bottom:18px">
+        <div class="ai-orb" style="width:46px;height:46px;font-size:15px">AI</div>
+        <div><div style="font-size:16px;font-weight:700">BusinessBrain Intelligence</div><div style="font-size:11.5px;color:var(--t3)" id="ai-model-sub">Analysing your business data</div></div>
+      </div>
+      <div class="qp-row" id="ai-quick-prompts">
+        <button class="qp" onclick="quickAsk(this)">Why is profit dropping?</button>
+        <button class="qp" onclick="quickAsk(this)">Best product to promote?</button>
+        <button class="qp" onclick="quickAsk(this)">Revenue forecast</button>
+        <button class="qp" onclick="quickAsk(this)">How to improve margins?</button>
+        <button class="qp" onclick="quickAsk(this)">Top 3 growth strategies</button>
+        <button class="qp" onclick="quickAsk(this)">What should I do?</button>
+      </div>
+      <div id="ai-chat-messages">
+        <div class="bubble b-ai">👋 Hello! I'm your BusinessBrain AI. Upload your CSV or Excel data first, and I'll give you personalised insights based on YOUR actual numbers — profit margins, best products, customer behaviour, and what you should do next.</div>
+      </div>
+      <div class="chat-row">
+        <input type="text" class="ci" id="ai-chat-input" placeholder="Ask anything about your business…" onkeydown="if(event.key==='Enter') aiSend()"/>
+        <button class="send-btn" id="ai-send-btn" onclick="aiSend()">Send ✦</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+        <div id="ai-mode-chip" class="chip" style="font-size:11px;padding:5px 12px;cursor:pointer" onclick="nav('settings',document.getElementById('nav-settings'))">💻 Local AI — <span style="color:var(--accent)">Connect Gemini ↗</span></div>
+        <div style="font-size:11px;color:var(--t3)">Powered by BusinessBrain Intelligence</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="panel" style="margin-bottom:0">
+        <div class="ph" style="margin-bottom:13px"><h2>Priority Insights</h2><span class="badge b-p" id="insights-count">0</span></div>
+        <div id="ai-page-insights"><div style="font-size:13px;color:var(--t3);text-align:center;padding:20px">Upload data to generate insights</div></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="ph" style="margin-bottom:13px"><h2>Business Health Score</h2></div>
+        <div id="health-stats">
+          <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Data Status</span><span class="badge b-y">No Data</span></div>
+          <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Overall Score</span><span style="font-size:14px;font-weight:700;color:var(--t3)">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: PLANS & PRICING
+══════════════════════════════════════ -->
+<div class="page" id="page-plans">
+  <div class="topbar">
+    <div><h1>Plans &amp; Pricing</h1><p>Choose the plan that grows with your business</p></div>
+    <div class="tr">
+      <div id="billing-toggle" style="display:flex;background:rgba(255,255,255,.05);border:1px solid var(--bdr);border-radius:20px;padding:4px;gap:3px">
+        <button class="ptab active" id="bill-w" onclick="setBilling('weekly',this)" style="border-radius:16px;padding:5px 14px">Weekly</button>
+        <button class="ptab" id="bill-m" onclick="setBilling('monthly',this)" style="border-radius:16px;padding:5px 14px">Monthly</button>
+        <button class="ptab" id="bill-y" onclick="setBilling('yearly',this)" style="border-radius:16px;padding:5px 14px">Yearly 🔥</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVINGS BANNER -->
+  <div style="text-align:center;margin-bottom:28px">
+    <div style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(249,115,22,.1));border:1px solid rgba(245,158,11,.3);border-radius:20px;padding:8px 20px;font-size:13px;font-weight:600;color:var(--yellow)">
+      🎉 Annual plans save up to <strong>50%</strong> vs weekly billing
+    </div>
+  </div>
+
+  <!-- PLAN CARDS -->
+  <div class="plan-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:32px" id="plan-cards-grid">
+
+    <!-- LITE -->
+    <div class="plan-card" id="plan-lite">
+      <div class="plan-badge" style="background:rgba(100,116,139,.15);color:#94a3b8">Lite</div>
+      <div class="plan-icon">🌱</div>
+      <div class="plan-name">Lite</div>
+      <div class="plan-desc">Perfect for trying out BusinessBrain AI</div>
+      <div class="plan-price" id="price-lite">
+        <span class="plan-amt">₹80</span>
+        <span class="plan-period">/week</span>
+      </div>
+      <div class="plan-equiv" id="equiv-lite">≈ ₹320/month</div>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li><span class="pf-yes">✓</span> 1 upload per week</li>
+        <li><span class="pf-yes">✓</span> Up to 200 rows</li>
+        <li><span class="pf-yes">✓</span> Basic analytics</li>
+        <li><span class="pf-yes">✓</span> 3 dashboard pages</li>
+        <li><span class="pf-no">✗</span> Gemini AI chat</li>
+        <li><span class="pf-no">✗</span> Customer analytics</li>
+        <li><span class="pf-no">✗</span> Regional breakdown</li>
+        <li><span class="pf-no">✗</span> PDF reports</li>
+      </ul>
+      <button class="plan-btn plan-btn-ghost" onclick="selectPlan('Lite')" id="btn-lite">Get Started</button>
+    </div>
+
+    <!-- INTERMEDIATE -->
+    <div class="plan-card" id="plan-intermediate">
+      <div class="plan-badge" style="background:rgba(6,182,212,.15);color:var(--a3)">Popular</div>
+      <div class="plan-icon">📊</div>
+      <div class="plan-name">Intermediate</div>
+      <div class="plan-desc">For small businesses tracking growth</div>
+      <div class="plan-price" id="price-intermediate">
+        <span class="plan-amt">₹249</span>
+        <span class="plan-period">/month</span>
+      </div>
+      <div class="plan-equiv" id="equiv-intermediate">&nbsp;</div>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li><span class="pf-yes">✓</span> 8 uploads per month</li>
+        <li><span class="pf-yes">✓</span> Up to 1,000 rows</li>
+        <li><span class="pf-yes">✓</span> Full analytics suite</li>
+        <li><span class="pf-yes">✓</span> All 7 pages</li>
+        <li><span class="pf-yes">✓</span> Gemini AI (100 chats/mo)</li>
+        <li><span class="pf-yes">✓</span> Customer analytics</li>
+        <li><span class="pf-no">✗</span> Regional breakdown</li>
+        <li><span class="pf-no">✗</span> PDF reports</li>
+      </ul>
+      <button class="plan-btn plan-btn-ghost" onclick="selectPlan('Intermediate')" id="btn-intermediate">Get Started</button>
+    </div>
+
+    <!-- PRO (HIGHLIGHTED) -->
+    <div class="plan-card plan-card-featured" id="plan-pro">
+      <div class="plan-popular-ribbon">⭐ Most Popular</div>
+      <div class="plan-badge" style="background:rgba(99,102,241,.2);color:var(--accent)">Pro</div>
+      <div class="plan-icon">🚀</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-desc">Everything you need to scale your business</div>
+      <div class="plan-price" id="price-pro">
+        <span class="plan-amt">₹399</span>
+        <span class="plan-period">/month</span>
+      </div>
+      <div class="plan-equiv" id="equiv-pro">&nbsp;</div>
+      <div class="plan-divider" style="border-color:rgba(99,102,241,.3)"></div>
+      <ul class="plan-features">
+        <li><span class="pf-yes">✓</span> Unlimited uploads</li>
+        <li><span class="pf-yes">✓</span> Up to 10,000 rows</li>
+        <li><span class="pf-yes">✓</span> Full analytics suite</li>
+        <li><span class="pf-yes">✓</span> All 7 pages + charts</li>
+        <li><span class="pf-yes">✓</span> Gemini AI (500 chats/mo)</li>
+        <li><span class="pf-yes">✓</span> Customer analytics</li>
+        <li><span class="pf-yes">✓</span> Regional breakdown</li>
+        <li><span class="pf-yes">✓</span> PDF reports</li>
+      </ul>
+      <button class="plan-btn plan-btn-primary" onclick="selectPlan('Pro')" id="btn-pro">Upgrade to Pro →</button>
+    </div>
+
+    <!-- SUPER SAVER -->
+    <div class="plan-card plan-card-gold" id="plan-supersaver">
+      <div class="plan-popular-ribbon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">🔥 Best Value</div>
+      <div class="plan-badge" style="background:rgba(245,158,11,.15);color:var(--yellow)">Super Saver</div>
+      <div class="plan-icon">💰</div>
+      <div class="plan-name">Super Saver</div>
+      <div class="plan-desc">Pro features, annual savings</div>
+      <div class="plan-price" id="price-supersaver">
+        <span class="plan-amt">₹2,499</span>
+        <span class="plan-period">/year</span>
+      </div>
+      <div class="plan-equiv" id="equiv-supersaver" style="color:var(--green)">≈ ₹208/mo · Save ₹2,289!</div>
+      <div class="plan-divider" style="border-color:rgba(245,158,11,.3)"></div>
+      <ul class="plan-features">
+        <li><span class="pf-yes">✓</span> Unlimited uploads</li>
+        <li><span class="pf-yes">✓</span> Up to 50,000 rows</li>
+        <li><span class="pf-yes">✓</span> Full analytics suite</li>
+        <li><span class="pf-yes">✓</span> All 7 pages + charts</li>
+        <li><span class="pf-yes">✓</span> Gemini AI unlimited</li>
+        <li><span class="pf-yes">✓</span> Customer + regional</li>
+        <li><span class="pf-yes">✓</span> Priority PDF reports</li>
+        <li><span class="pf-yes">✓</span> 3-member team</li>
+      </ul>
+      <button class="plan-btn" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff" onclick="selectPlan('Super Saver')" id="btn-supersaver">Get Super Saver →</button>
+    </div>
+
+    <!-- SUPER PLAN -->
+    <div class="plan-card plan-card-purple" id="plan-super">
+      <div class="plan-popular-ribbon" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">👑 Enterprise</div>
+      <div class="plan-badge" style="background:rgba(139,92,246,.2);color:var(--a2)">Super</div>
+      <div class="plan-icon">👑</div>
+      <div class="plan-name">Super Plan</div>
+      <div class="plan-desc">For power users and growing teams</div>
+      <div class="plan-price" id="price-super">
+        <span class="plan-amt">₹3,999</span>
+        <span class="plan-period">/year</span>
+      </div>
+      <div class="plan-equiv" id="equiv-super" style="color:var(--green)">≈ ₹333/mo · Save ₹784!</div>
+      <div class="plan-divider" style="border-color:rgba(139,92,246,.3)"></div>
+      <ul class="plan-features">
+        <li><span class="pf-yes">✓</span> Unlimited uploads</li>
+        <li><span class="pf-yes">✓</span> Unlimited rows</li>
+        <li><span class="pf-yes">✓</span> Full analytics suite</li>
+        <li><span class="pf-yes">✓</span> All 7 pages + charts</li>
+        <li><span class="pf-yes">✓</span> Gemini AI unlimited</li>
+        <li><span class="pf-yes">✓</span> Unlimited team members</li>
+        <li><span class="pf-yes">✓</span> White-label exports</li>
+        <li><span class="pf-yes">✓</span> API access + priority support</li>
+      </ul>
+      <button class="plan-btn plan-btn-primary" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="selectPlan('Super Plan')" id="btn-super">Go Super →</button>
+    </div>
+
+  </div>
+
+  <!-- COMPARISON TABLE -->
+  <div class="slbl">Full Feature Comparison</div>
+  <div class="panel" style="overflow-x:auto">
+    <table style="min-width:700px">
+      <thead>
+        <tr>
+          <th style="width:30%">Feature</th>
+          <th style="text-align:center">Lite</th>
+          <th style="text-align:center">Intermediate</th>
+          <th style="text-align:center;color:var(--accent)">Pro ⭐</th>
+          <th style="text-align:center;color:var(--yellow)">Super Saver 🔥</th>
+          <th style="text-align:center;color:var(--a2)">Super Plan 👑</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="fw6">Price</td><td style="text-align:center">₹80/wk</td><td style="text-align:center">₹249/mo</td><td style="text-align:center;font-weight:700;color:var(--accent)">₹399/mo</td><td style="text-align:center;font-weight:700;color:var(--yellow)">₹2,499/yr</td><td style="text-align:center;font-weight:700;color:var(--a2)">₹3,999/yr</td></tr>
+        <tr><td>File Uploads</td><td style="text-align:center">1/week</td><td style="text-align:center">8/month</td><td style="text-align:center">Unlimited</td><td style="text-align:center">Unlimited</td><td style="text-align:center">Unlimited</td></tr>
+        <tr><td>Max Rows</td><td style="text-align:center">200</td><td style="text-align:center">1,000</td><td style="text-align:center">10,000</td><td style="text-align:center">50,000</td><td style="text-align:center">Unlimited</td></tr>
+        <tr><td>Dashboard Pages</td><td style="text-align:center">3</td><td style="text-align:center">All 7</td><td style="text-align:center">All 7</td><td style="text-align:center">All 7</td><td style="text-align:center">All 7</td></tr>
+        <tr><td>Gemini AI Chat</td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center">100/mo</td><td style="text-align:center">500/mo</td><td style="text-align:center">Unlimited</td><td style="text-align:center">Unlimited</td></tr>
+        <tr><td>Customer Analytics</td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td></tr>
+        <tr><td>Regional Breakdown</td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td></tr>
+        <tr><td>PDF Reports</td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td></tr>
+        <tr><td>Team Members</td><td style="text-align:center">1</td><td style="text-align:center">1</td><td style="text-align:center">1</td><td style="text-align:center">3</td><td style="text-align:center">Unlimited</td></tr>
+        <tr><td>White-label Export</td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td></tr>
+        <tr><td>Priority Support</td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td></tr>
+        <tr><td>API Access</td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-r">✗</span></td><td style="text-align:center"><span class="badge b-g">✓</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FAQ / GUARANTEE -->
+  <div class="g2" style="margin-top:6px">
+    <div class="panel" style="margin-bottom:0">
+      <div class="ph" style="margin-bottom:14px"><h2>❓ Common Questions</h2></div>
+      <div class="stat-row"><div><div class="fw6" style="font-size:13px">Can I cancel anytime?</div><div style="font-size:12px;color:var(--t2);margin-top:3px">Yes — no contracts, no lock-in. Cancel from Settings anytime.</div></div></div>
+      <div class="stat-row"><div><div class="fw6" style="font-size:13px">Is my data safe?</div><div style="font-size:12px;color:var(--t2);margin-top:3px">All data is processed in your browser — never stored on our servers.</div></div></div>
+      <div class="stat-row"><div><div class="fw6" style="font-size:13px">Can I switch plans?</div><div style="font-size:12px;color:var(--t2);margin-top:3px">Yes, upgrade or downgrade at any time. Charges are prorated.</div></div></div>
+      <div class="stat-row"><div><div class="fw6" style="font-size:13px">What payment methods?</div><div style="font-size:12px;color:var(--t2);margin-top:3px">UPI, Debit/Credit cards, NetBanking, Wallets (Razorpay).</div></div></div>
+    </div>
+    <div class="panel" style="margin-bottom:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
+      <div style="font-size:40px">🛡️</div>
+      <div style="font-size:17px;font-weight:800">7-Day Money Back</div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.7;max-width:260px">Not happy? Get a full refund within 7 days of purchase, no questions asked.</div>
+      <div style="display:flex;gap:16px;font-size:12px;color:var(--t3)">
+        <div>🔒 Secure Payment</div>
+        <div>🇮🇳 Made in India</div>
+        <div>💬 24/7 Support</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPI PAYMENT MODAL (3-step) -->
+  <div id="plan-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:#0d1321;border:1px solid rgba(99,102,241,.3);border-radius:22px;padding:0;max-width:460px;width:93%;animation:fadeUp .3s ease;overflow:hidden">
+
+      <!-- MODAL HEADER -->
+      <div style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.08));padding:22px 26px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:12px">
+        <div style="font-size:28px" id="m-icon">🚀</div>
+        <div style="flex:1">
+          <div style="font-size:17px;font-weight:800" id="m-title">Upgrade to Pro</div>
+          <div style="font-size:12px;color:var(--t3);margin-top:2px" id="m-subtitle">Billed monthly · Cancel anytime</div>
+        </div>
+        <button onclick="closePlanModal()" style="background:rgba(255,255,255,.07);border:1px solid var(--bdr);border-radius:8px;width:30px;height:30px;color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+      </div>
+
+      <!-- STEP DOTS -->
+      <div style="display:flex;justify-content:center;gap:7px;padding:14px 0 0">
+        <div class="m-step-dot active" id="mdot-1"></div>
+        <div class="m-step-dot" id="mdot-2"></div>
+        <div class="m-step-dot" id="mdot-3"></div>
+      </div>
+
+      <div style="padding:18px 26px 24px">
+
+        <!-- STEP 1: PLAN SUMMARY -->
+        <div id="mstep-1">
+          <div style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(139,92,246,.06));border:1px solid rgba(99,102,241,.25);border-radius:14px;padding:18px;margin-bottom:16px;text-align:center">
+            <div style="font-size:32px;font-weight:900;letter-spacing:-1px" id="m-price">₹399</div>
+            <div style="font-size:13px;color:var(--t2);margin-top:4px" id="m-note">Billed monthly</div>
+          </div>
+          <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:18px;text-align:center" id="m-desc">You’re about to unlock full BusinessBrain AI features.</div>
+          <div style="display:flex;gap:10px">
+            <button class="btn" style="flex:1;padding:12px" onclick="mGoStep(2)">Pay with UPI →</button>
+            <button class="btn btn-ghost" onclick="closePlanModal()" style="padding:12px 16px">Cancel</button>
+          </div>
+          <div style="text-align:center;font-size:11px;color:var(--t3);margin-top:12px">🔒 100% secure · 🇮🇳 Indian payment · UPI / QR Code</div>
+        </div>
+
+        <!-- STEP 2: UPI PAYMENT -->
+        <div id="mstep-2" style="display:none">
+          <div style="text-align:center;margin-bottom:14px">
+            <div style="font-size:14px;font-weight:700;margin-bottom:4px">Scan &amp; Pay</div>
+            <div style="font-size:12px;color:var(--t3)">Use any UPI app — GPay, PhonePe, Paytm, BHIM</div>
+          </div>
+
+          <!-- QR CODE -->
+          <div style="display:flex;justify-content:center;margin-bottom:16px">
+            <div style="background:#fff;border-radius:14px;padding:12px;display:inline-block;box-shadow:0 0 32px rgba(99,102,241,.2)">
+              <img id="upi-qr" src="" alt="UPI QR Code" width="180" height="180" style="display:block;border-radius:8px"/>
+            </div>
+          </div>
+
+          <!-- AMOUNT DUE -->
+          <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:11px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;color:var(--t2)">Amount Due</span>
+            <span style="font-size:17px;font-weight:800;color:var(--green)" id="m-amt-display">₹399</span>
+          </div>
+
+          <!-- UPI ID -->
+          <div style="background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:10px;padding:11px 14px;margin-bottom:14px">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:5px">UPI ID (tap to copy)</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+              <code style="font-size:14px;font-weight:700;color:var(--accent);letter-spacing:.5px">7014807178@sbi</code>
+              <button onclick="copyUPI()" id="copy-btn" style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:7px;padding:5px 11px;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;font-family:Inter,sans-serif">Copy</button>
+            </div>
+          </div>
+
+          <!-- UPI APPS DEEP LINK -->
+          <div style="margin-bottom:16px">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:8px;text-align:center">Or open directly in your UPI app</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap" id="upi-app-btns"></div>
+          </div>
+
+          <div style="display:flex;gap:9px">
+            <button class="btn" style="flex:1;padding:11px" onclick="mGoStep(3)">I’ve Paid ✔</button>
+            <button class="btn btn-ghost" onclick="mGoStep(1)" style="padding:11px 14px">← Back</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: CONFIRMATION -->
+        <div id="mstep-3" style="display:none;text-align:center">
+          <div style="font-size:44px;margin-bottom:12px" id="m-confirm-icon">⏳</div>
+          <div style="font-size:17px;font-weight:800;margin-bottom:8px" id="m-confirm-title">Enter Transaction ID</div>
+          <div style="font-size:12.5px;color:var(--t2);line-height:1.7;margin-bottom:18px">After paying, paste your UPI Transaction ID (UTR) below. We’ll activate your plan within a few minutes.</div>
+          <input class="inp" id="utr-input" placeholder="12-digit UTR / Transaction ID" style="text-align:center;font-weight:600;font-size:14px;margin-bottom:12px"/>
+          <div style="display:flex;gap:9px;margin-bottom:14px">
+            <button class="btn" style="flex:1;padding:12px" onclick="submitPayment()">Submit &amp; Activate ✦</button>
+            <button class="btn btn-ghost" onclick="mGoStep(2)" style="padding:12px 14px">← Back</button>
+          </div>
+          <div style="font-size:11px;color:var(--t3)">Having trouble? WhatsApp us at <strong style="color:var(--t2)">+91 70148 07178</strong></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: REPORTS
+══════════════════════════════════════ -->
+<div class="page" id="page-reports">
+  <div class="topbar"><div><h1>Reports</h1><p>Generated from your uploaded data</p></div><div class="tr"><div class="chip" onclick="nav('upload',document.getElementById('nav-upload'))">📤 Upload Data</div></div></div>
+  <div class="slbl">Generated Reports</div>
+  <div>
+    <div class="rep-card"><div class="rep-ico ic-p">📊</div><div style="flex:1"><div class="fw6" style="font-size:14px">Monthly Revenue Report</div><div style="font-size:12px;color:var(--t3);margin-top:2px" id="rep-date-1">No data uploaded</div></div><span class="badge b-y" id="rep-status-1">Pending</span></div>
+    <div class="rep-card"><div class="rep-ico ic-g">💰</div><div style="flex:1"><div class="fw6" style="font-size:14px">Profit & Loss Statement</div><div style="font-size:12px;color:var(--t3);margin-top:2px" id="rep-date-2">No data uploaded</div></div><span class="badge b-y" id="rep-status-2">Pending</span></div>
+    <div class="rep-card"><div class="rep-ico ic-c">👥</div><div style="flex:1"><div class="fw6" style="font-size:14px">Customer Analytics Report</div><div style="font-size:12px;color:var(--t3);margin-top:2px" id="rep-date-3">No data uploaded</div></div><span class="badge b-y" id="rep-status-3">Pending</span></div>
+    <div class="rep-card"><div class="rep-ico ic-a">📦</div><div style="flex:1"><div class="fw6" style="font-size:14px">Product Performance Report</div><div style="font-size:12px;color:var(--t3);margin-top:2px" id="rep-date-4">No data uploaded</div></div><span class="badge b-y" id="rep-status-4">Pending</span></div>
+    <div class="rep-card"><div class="rep-ico" style="background:rgba(99,102,241,.15)">🤖</div><div style="flex:1"><div class="fw6" style="font-size:14px">AI Business Insights Report</div><div style="font-size:12px;color:var(--t3);margin-top:2px" id="rep-date-5">No data uploaded</div></div><span class="badge b-y" id="rep-status-5">Pending</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE: SETTINGS
+══════════════════════════════════════ -->
+<div class="page" id="page-settings">
+  <div class="topbar"><div><h1>Settings</h1><p>Account and preferences</p></div></div>
+
+  <!-- ── GEMINI AI CONNECTION ── -->
+  <div class="slbl">AI Connection</div>
+  <div class="panel" style="margin-bottom:20px;border-color:rgba(99,102,241,.25);background:linear-gradient(135deg,rgba(99,102,241,.06),var(--card))">
+    <div class="ph" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div class="ai-orb" style="width:38px;height:38px;font-size:13px">AI</div>
+        <div><h2 style="font-size:15px">Google Gemini API</h2><div style="font-size:11.5px;color:var(--t3);margin-top:2px">Power the AI Advisor with real intelligence</div></div>
+      </div>
+      <div id="gemini-status-badge" class="badge b-y">Not Connected</div>
+    </div>
+    <div style="background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:11px;padding:16px;margin-bottom:14px">
+      <div style="font-size:12px;color:var(--t2);margin-bottom:10px;line-height:1.7">Enter your <strong style="color:var(--accent)">Google Gemini API key</strong> to enable real AI responses. Your key is stored only in your browser — never sent to any server.<br><br>Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);text-decoration:none">aistudio.google.com ↗</a> (free tier: 1500 requests/day).</div>
+      <div style="display:flex;gap:9px;align-items:stretch">
+        <input class="inp" id="gemini-key-input" type="password" placeholder="AIza…" style="flex:1;font-family:monospace;font-size:12px"/>
+        <button class="btn btn-sm" onclick="saveGeminiKey()">Connect ✦</button>
+        <button class="btn btn-sm btn-ghost" onclick="clearGeminiKey()">Clear</button>
+      </div>
+      <div id="gemini-test-result" style="font-size:12px;margin-top:10px;display:none"></div>
+    </div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div><div style="font-size:11px;color:var(--t3)">Model</div><div style="font-size:13px;font-weight:600">Gemini 2.0 Flash</div></div>
+      <div><div style="font-size:11px;color:var(--t3)">Context</div><div style="font-size:13px;font-weight:600">Your business data</div></div>
+      <div><div style="font-size:11px;color:var(--t3)">Mode</div><div style="font-size:13px;font-weight:600" id="ai-mode-label">Local (offline)</div></div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:20px">
+    <div class="panel" style="margin-bottom:0">
+      <div class="ph" style="margin-bottom:16px"><h2>👤 Profile</h2></div>
+      <div style="display:flex;flex-direction:column;gap:13px">
+        <div><div style="font-size:11.5px;color:var(--t3);margin-bottom:5px">Business Name</div><input class="inp" value="My Business Pvt. Ltd."/></div>
+        <div><div style="font-size:11.5px;color:var(--t3);margin-bottom:5px">Owner Name</div><input class="inp" value="Business Owner"/></div>
+        <div><div style="font-size:11.5px;color:var(--t3);margin-bottom:5px">Email</div><input class="inp" value="owner@mybusiness.com"/></div>
+        <div style="display:flex;gap:9px"><button class="btn">Save Changes</button><button class="btn btn-ghost">Cancel</button></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="panel" style="margin-bottom:0">
+        <div class="ph" style="margin-bottom:4px"><h2>🔔 Notifications</h2></div>
+        <div class="setting-row"><div><div style="font-size:13.5px;font-weight:500">Email Alerts</div><div style="font-size:11.5px;color:var(--t3)">Monthly report emails</div></div><div class="toggle" onclick="this.classList.toggle('off')"></div></div>
+        <div class="setting-row"><div><div style="font-size:13.5px;font-weight:500">AI Insights</div><div style="font-size:11.5px;color:var(--t3)">Daily recommendations</div></div><div class="toggle" onclick="this.classList.toggle('off')"></div></div>
+        <div class="setting-row"><div><div style="font-size:13.5px;font-weight:500">Low Stock Alerts</div><div style="font-size:11.5px;color:var(--t3)">Product reorder alerts</div></div><div class="toggle off" onclick="this.classList.toggle('off')"></div></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <div class="ph" style="margin-bottom:4px"><h2>💼 Plan</h2></div>
+        <div style="padding:14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:11px;margin-bottom:12px"><div style="font-weight:700;font-size:14px">Pro Plan <span class="badge b-p" style="margin-left:6px">Current</span></div><div style="font-size:11.5px;color:var(--t3);margin-top:4px">₹4,999/month · Unlimited uploads</div></div>
+        <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Uploads This Month</span><span style="font-weight:600" id="s-uploads">0</span></div>
+        <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Rows Processed</span><span style="font-weight:600" id="s-rows">0</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ════ SCRIPTS ════ -->
+<script>
+'use strict';
+
+// ─── GLOBAL STATE ───────────────────────────────────────────────
+let G = {
+  raw: [],          // raw parsed rows (array of objects)
+  headers: [],      // detected headers
+  colMap: {},       // { revenue, cost, profit, product, customer, date, qty, region, price }
+  analytics: null,  // computed analytics object
+  charts: {},       // chart instances keyed by canvas id
+  fileName: '',
+  uploadCount: 0,
+};
+
+// ─── NAVIGATION ─────────────────────────────────────────────────
+function nav(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.menu a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (el) el.classList.add('active');
+  window.scrollTo(0,0);
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'sales') renderSales();
+  if (page === 'customers') renderCustomers();
+  if (page === 'products') renderProducts();
+  if (page === 'ai') renderAIPage();
+}
+
+// ─── PLANS & PRICING ────────────────────────────────────────────
+const PLANS = {
+  lite:        { name:'Lite',        icon:'🌱', weekly:'₹80/week',   monthly:'₹320/month',  yearly:'₹4,160/year', price_w:'₹80', price_m:'₹320', price_y:'₹4,160', equiv_m:'≈ ₹320/mo', equiv_y:'≈ ₹347/mo', note_w:'Billed weekly · Cancel anytime', note_m:'Billed monthly · Cancel anytime', note_y:'Billed annually · Cancel anytime' },
+  intermediate:{ name:'Intermediate',icon:'📊', weekly:'₹70/week',   monthly:'₹249/month',  yearly:'₹2,388/year', price_w:'₹70', price_m:'₹249', price_y:'₹2,388', equiv_m:'', equiv_y:'≈ ₹199/mo · Save ₹600!', note_w:'Billed weekly', note_m:'Billed monthly · Cancel anytime', note_y:'Billed annually · Save ₹600' },
+  pro:         { name:'Pro',         icon:'🚀', weekly:'₹110/week',  monthly:'₹399/month',  yearly:'₹3,588/year', price_w:'₹110', price_m:'₹399', price_y:'₹3,588', equiv_m:'', equiv_y:'≈ ₹299/mo · Save ₹1,200!', note_w:'Billed weekly', note_m:'Billed monthly · Cancel anytime', note_y:'Billed annually · Save ₹1,200' },
+  supersaver:  { name:'Super Saver', icon:'💰', weekly:null,          monthly:null,           yearly:'₹2,499/year', price_w:null, price_m:null, price_y:'₹2,499', equiv_m:'Annual only', equiv_y:'≈ ₹208/mo · Save ₹2,289!', note_w:'Annual plan only', note_m:'Annual plan only', note_y:'Billed annually · Best value' },
+  super:       { name:'Super Plan',  icon:'👑', weekly:null,          monthly:null,           yearly:'₹3,999/year', price_w:null, price_m:null, price_y:'₹3,999', equiv_m:'Annual only', equiv_y:'≈ ₹333/mo · Save ₹784!', note_w:'Annual plan only', note_m:'Annual plan only', note_y:'Billed annually · Enterprise' },
+};
+
+let currentBilling = 'monthly';
+
+function setBilling(mode, btn) {
+  currentBilling = mode;
+  document.querySelectorAll('#billing-toggle .ptab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+
+  // Update each plan card pricing display
+  const map = {
+    'weekly':  { lite:'₹80',  inter:'₹70',  pro:'₹110', ss:'Annual only', sup:'Annual only',
+                 lp:'/week',   ip:'/week',    pp:'/week', ssp:'', supp:'',
+                 leq:'≈ ₹320/month', ieq:'', peq:'', sseq:'Annual only', supeq:'Annual only' },
+    'monthly': { lite:'₹320', inter:'₹249', pro:'₹399', ss:'₹2,499', sup:'₹3,999',
+                 lp:'/month',  ip:'/month',   pp:'/month',ssp:'/year', supp:'/year',
+                 leq:'≈ ₹320/mo', ieq:'', peq:'', sseq:'≈ ₹208/mo · Save ₹2,289!', supeq:'≈ ₹333/mo · Save ₹784!' },
+    'yearly':  { lite:'₹4,160',inter:'₹2,388',pro:'₹3,588',ss:'₹2,499',sup:'₹3,999',
+                 lp:'/year',   ip:'/year',    pp:'/year', ssp:'/year', supp:'/year',
+                 leq:'≈ ₹347/mo', ieq:'≈ ₹199/mo · Save ₹600!', peq:'≈ ₹299/mo · Save ₹1,200!', sseq:'≈ ₹208/mo · Best Value!', supeq:'≈ ₹333/mo · Enterprise' },
+  };
+  const d = map[mode];
+  const set = (id, amt, per, eq, eqColor) => {
+    document.getElementById('price-'+id).innerHTML = `<span class="plan-amt">${amt}</span><span class="plan-period">${per}</span>`;
+    const eqEl = document.getElementById('equiv-'+id);
+    eqEl.textContent = eq;
+    eqEl.style.color = eqColor || 'var(--t3)';
+  };
+  set('lite','price_lite' in window?d.lite:d.lite, d.lp, d.leq, mode==='yearly'?'var(--t3)':'');
+  set('intermediate', d.inter, d.ip, d.ieq, mode==='yearly'?'var(--green)':'');
+  set('pro', d.pro, d.pp, d.peq, mode==='yearly'?'var(--green)':'');
+  set('supersaver', d.ss, d.ssp, d.sseq, 'var(--green)');
+  set('super', d.sup, d.supp, d.supeq, 'var(--green)');
+}
+
+const PLAN_MODAL_DATA = {
+  'Lite':       { icon:'🌱', amt:80,    period:'week',  note:'Billed weekly · Cancel anytime',    desc:'Start your BusinessBrain journey with essential analytics.' },
+  'Intermediate':{ icon:'📊', amt:249,  period:'month', note:'Billed monthly · Cancel anytime',   desc:'Full analytics suite with Gemini AI for your growing business.' },
+  'Pro':        { icon:'🚀', amt:399,  period:'month', note:'Billed monthly · Cancel anytime',   desc:'Everything you need to scale — unlimited uploads, full AI, reports.' },
+  'Super Saver':{ icon:'💰', amt:2499, period:'year',  note:'Billed annually · Save ₹2,289',    desc:'Pro features at half the price. Best value for serious businesses.' },
+  'Super Plan': { icon:'👑', amt:3999, period:'year',  note:'Billed annually · Includes team',   desc:'Enterprise-grade: unlimited team, API access, white-label exports.' },
+};
+
+const UPI_ID   = '7014807178@sbi';
+const PAYEE_NAME = 'BusinessBrain AI';
+
+const UPI_APPS = [
+  { name:'GPay',    emoji:'📱', scheme:'tez' },
+  { name:'PhonePe', emoji:'💳', scheme:'phonepe' },
+  { name:'Paytm',   emoji:'🔵', scheme:'paytmmp' },
+  { name:'BHIM',    emoji:'🇮🇳', scheme:'upi' },
+];
+
+function upiLink(amt, plan, scheme) {
+  const params = new URLSearchParams({ pa:UPI_ID, pn:PAYEE_NAME, am:amt, cu:'INR', tn: plan + ' Plan - BusinessBrain AI' });
+  return `${scheme}://pay?${params.toString()}`;
+}
+
+function selectPlan(planName) {
+  const d = PLAN_MODAL_DATA[planName];
+  const rawAmt = d.amt;
+  const amtStr = '₹' + rawAmt.toLocaleString('en-IN');
+
+  // Header
+  document.getElementById('m-icon').textContent = d.icon;
+  document.getElementById('m-title').textContent = 'Upgrade to ' + planName;
+  document.getElementById('m-subtitle').textContent = d.note;
+
+  // Step 1
+  document.getElementById('m-price').textContent = amtStr + '/' + d.period;
+  document.getElementById('m-note').textContent = d.note;
+  document.getElementById('m-desc').textContent = d.desc;
+
+  // Step 2 — amount
+  document.getElementById('m-amt-display').textContent = amtStr;
+
+  // QR code via free API — encodes the UPI deep link
+  const upiUrl = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(PAYEE_NAME)}&am=${rawAmt}&cu=INR&tn=${encodeURIComponent(planName + ' Plan - BusinessBrain AI')}`;
+  const qrUrl  = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiUrl)}&size=200x200&margin=0&color=000000&bgcolor=ffffff`;
+  document.getElementById('upi-qr').src = qrUrl;
+
+  // UPI app buttons
+  const appRow = document.getElementById('upi-app-btns');
+  appRow.innerHTML = UPI_APPS.map(a =>
+    `<a href="${upiLink(rawAmt, planName, a.scheme)}" target="_blank" rel="noopener"
+       style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 12px;background:rgba(255,255,255,.05);border:1px solid var(--bdr);border-radius:11px;text-decoration:none;transition:all .2s;cursor:pointer"
+       onmouseover="this.style.borderColor='rgba(99,102,241,.5)'" onmouseout="this.style.borderColor='var(--bdr)'">
+      <span style="font-size:22px">${a.emoji}</span>
+      <span style="font-size:10px;color:var(--t2);font-weight:600">${a.name}</span>
+    </a>`
+  ).join('');
+
+  // Show modal at step 1
+  mGoStep(1);
+  const modal = document.getElementById('plan-modal');
+  modal.style.display = 'flex';
+  modal.onclick = e => { if (e.target === modal) closePlanModal(); };
+}
+
+function mGoStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('mstep-'+i).style.display = i===n ? 'block' : 'none';
+    const dot = document.getElementById('mdot-'+i);
+    dot.classList.toggle('active', i <= n);
+  });
+}
+
+function copyUPI() {
+  navigator.clipboard.writeText(UPI_ID).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied ✓';
+    btn.style.background = 'rgba(16,185,129,.2)';
+    btn.style.borderColor = 'rgba(16,185,129,.4)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent='Copy'; btn.style.background=''; btn.style.borderColor=''; btn.style.color='var(--accent)'; }, 2000);
+  }).catch(() => { alert('UPI ID: ' + UPI_ID); });
+}
+
+function submitPayment() {
+  const utr = document.getElementById('utr-input').value.trim();
+  if (!utr || utr.length < 6) { document.getElementById('utr-input').style.borderColor='var(--red)'; return; }
+  document.getElementById('m-confirm-icon').textContent = '🎉';
+  document.getElementById('m-confirm-title').textContent = 'Payment Received!';
+  document.getElementById('utr-input').style.display = 'none';
+  document.querySelector('#mstep-3 .btn').style.display = 'none';
+  document.querySelector('#mstep-3 .btn-ghost').style.display = 'none';
+  const thankDiv = document.createElement('div');
+  thankDiv.innerHTML = `<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:12px;padding:16px;margin-bottom:12px">
+    <div style="font-size:13px;color:var(--green);font-weight:700">Thank you! 👋</div>
+    <div style="font-size:12px;color:var(--t2);margin-top:5px;line-height:1.7">Your payment with UTR <strong>${utr}</strong> has been submitted. Your plan will be activated within <strong>30 minutes</strong>.</div>
+  </div>
+  <div style="font-size:11.5px;color:var(--t3)">Questions? WhatsApp <strong style="color:var(--t2)">+91 70148 07178</strong></div>`;
+  document.getElementById('mstep-3').appendChild(thankDiv);
+  setTimeout(closePlanModal, 5000);
+}
+
+function closePlanModal() {
+  document.getElementById('plan-modal').style.display = 'none';
+  document.getElementById('utr-input').value = '';
+  document.getElementById('utr-input').style.display = '';
+  document.getElementById('utr-input').style.borderColor = '';
+  // reset confirm step in case it was used
+  document.getElementById('m-confirm-icon').textContent = '⏳';
+  document.getElementById('m-confirm-title').textContent = 'Enter Transaction ID';
+  const thankDivs = document.querySelectorAll('#mstep-3 div:not([style*="font-size:12.5"])');
+  thankDivs.forEach(d => { if (d.querySelector('.btn')) return; });
+  document.querySelectorAll('#mstep-3 .btn, #mstep-3 .btn-ghost').forEach(b => b.style.display = '');
+  const extra = document.querySelector('#mstep-3 > div[style*="rgba(16,185,129"]');
+  if (extra) extra.remove();
+}
+
+// ─── FORMAT HELPERS ─────────────────────────────────────────────
+function fmtNum(val) {
+  if (isNaN(val) || val === null) return '—';
+  const abs = Math.abs(val);
+  if (abs >= 10000000) return (val/10000000).toFixed(2) + 'Cr';
+  if (abs >= 100000)   return (val/100000).toFixed(2) + 'L';
+  if (abs >= 1000)     return (val/1000).toFixed(1) + 'K';
+  return Math.round(val).toLocaleString();
+}
+
+function fmtMoney(val, sym) {
+  if (isNaN(val) || val === null) return '—';
+  return (sym||'') + fmtNum(val);
+}
+
+function detectCurrencySymbol(rows, col) {
+  if (!col) return '';
+  for (const r of rows) {
+    const v = String(r[col]||'');
+    if (v.includes('₹')) return '₹';
+    if (v.includes('$')) return '$';
+    if (v.includes('€')) return '€';
+    if (v.includes('£')) return '£';
+  }
+  return '';
+}
+
+let CURRENCY = '';
+
+function fmt(val) { return fmtMoney(val, CURRENCY); }
+
+function parseNum(v) {
+  if (v === null || v === undefined || v === '') return NaN;
+  if (typeof v === 'number') return v;
+  return parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+}
+
+function parseDate(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  // try various formats
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return { ts: d.getTime(), month: d.toLocaleString('en',{month:'short',year:'numeric'}), monthShort: d.toLocaleString('en',{month:'short'}), year: d.getFullYear() };
+  }
+  // dd/mm/yyyy or dd-mm-yyyy
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    const d2 = new Date(m[3], m[2]-1, m[1]);
+    if (!isNaN(d2.getTime())) return { ts: d2.getTime(), month: d2.toLocaleString('en',{month:'short',year:'numeric'}), monthShort: d2.toLocaleString('en',{month:'short'}), year: d2.getFullYear() };
+  }
+  return null;
+}
+
+// ─── COLUMN DETECTION ───────────────────────────────────────────
+const COL_RULES = [
+  { key:'revenue',  kw:['revenue','sales','sale','amount','income','total','turnover','gross','receipts','income','proceeds'], priority:10 },
+  { key:'cost',     kw:['cost','cogs','expense','expenditure','spend','purchase','buying','procurement'], priority:9 },
+  { key:'profit',   kw:['profit','net','gain','earning','margin_val','net profit','gross profit'], priority:9 },
+  { key:'product',  kw:['product','item','sku','goods','description','desc','name','product name','item name'], priority:8 },
+  { key:'customer', kw:['customer','client','buyer','account','customer name','client name','party'], priority:8 },
+  { key:'date',     kw:['date','month','period','time','year','day','order date','sale date','invoice date'], priority:7 },
+  { key:'qty',      kw:['qty','quantity','units','count','volume','sold','pieces','no','number'], priority:6 },
+  { key:'region',   kw:['region','city','state','location','area','zone','district','country','place','branch'], priority:6 },
+  { key:'price',    kw:['price','rate','mrp','unit price','per unit','sp','selling price'], priority:5 },
+];
+
+function detectColumns(headers) {
+  const map = {};
+  const assigned = new Set();
+
+  // Score each header against each rule
+  const scores = headers.map(h => {
+    const hl = h.toLowerCase().trim();
+    const result = {};
+    for (const rule of COL_RULES) {
+      let score = 0;
+      for (const kw of rule.kw) {
+        if (hl === kw) score = 100;
+        else if (hl.includes(kw)) score = 70;
+        else if (kw.includes(hl) && hl.length > 2) score = 50;
+      }
+      if (score > 0) result[rule.key] = score * rule.priority;
+    }
+    return { header: h, scores: result };
+  });
+
+  // Greedy assignment: highest score first
+  const allPairs = [];
+  for (const item of scores) {
+    for (const [key, score] of Object.entries(item.scores)) {
+      allPairs.push({ header: item.header, key, score });
+    }
+  }
+  allPairs.sort((a,b) => b.score - a.score);
+  for (const pair of allPairs) {
+    if (!map[pair.key] && !assigned.has(pair.header)) {
+      map[pair.key] = pair.header;
+      assigned.add(pair.header);
+    }
+  }
+
+  // Build confidence
+  const confidence = {};
+  for (const item of scores) {
+    const mapped = Object.entries(map).find(([k,v]) => v === item.header);
+    if (mapped) {
+      const sc = item.scores[mapped[0]] || 0;
+      if (sc >= 700) confidence[item.header] = 'high';
+      else if (sc >= 350) confidence[item.header] = 'med';
+      else confidence[item.header] = 'low';
+    }
+  }
+  return { map, confidence };
+}
+
+// ─── FILE HANDLING ──────────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(file) {
+  if (!file) return;
+  G.fileName = file.name;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'csv') {
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: res => {
+        G.raw = res.data;
+        G.headers = res.meta.fields;
+        showPreview();
+      },
+      error: e => alert('CSV parse error: ' + e.message)
+    });
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      if (!data.length) { alert('No data found in file.'); return; }
+      G.raw = data;
+      G.headers = Object.keys(data[0]);
+      showPreview();
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    alert('Unsupported file type. Please upload CSV, XLSX, or XLS.');
+  }
+}
+
+function loadDemoData() {
+  fetch('./demo_sales_data.csv')
+    .then(r => r.text())
+    .then(csv => {
+      const result = Papa.parse(csv, { header:true, skipEmptyLines:true });
+      G.raw = result.data;
+      G.headers = result.meta.fields;
+      G.fileName = 'demo_sales_data.csv';
+      showPreview();
+    })
+    .catch(() => {
+      // Inline fallback demo data
+      const csv = `Date,Product,Customer,City,Revenue,Cost,Quantity
+2026-04-02,Laptop Pro X1,Rahul Sharma,Mumbai,55000,40000,1
+2026-04-05,SmartPhone Z9,Priya Mehta,Delhi,24900,18000,1
+2026-04-07,ErgoChair Elite,Amit Patel,Ahmedabad,13500,8000,3
+2026-04-10,Laptop Pro X1,Sneha Nair,Bengaluru,55000,40000,1
+2026-04-12,WorkTable Slim,Vikram Das,Chennai,8200,5500,1
+2026-04-15,SmartPhone Z9,Neha Gupta,Pune,49800,36000,2
+2026-04-18,ErgoChair Elite,Arjun Singh,Hyderabad,4500,2700,1
+2026-04-20,Laptop Pro X1,Rahul Sharma,Mumbai,55000,40000,1
+2026-04-22,SmartPhone Z9,Pooja Reddy,Bengaluru,24900,18000,1
+2026-04-25,WorkTable Slim,Karan Mehta,Delhi,16400,11000,2
+2026-05-01,Laptop Pro X1,Priya Mehta,Delhi,55000,40000,1
+2026-05-08,Laptop Pro X1,Vikram Das,Chennai,110000,80000,2
+2026-05-11,SmartPhone Z9,Amit Patel,Ahmedabad,24900,18000,1
+2026-05-19,Laptop Pro X1,Pooja Reddy,Bengaluru,55000,40000,1
+2026-05-22,SmartPhone Z9,Karan Mehta,Delhi,74700,54000,3
+2026-06-01,Laptop Pro X1,Priya Mehta,Delhi,55000,40000,1
+2026-06-09,Laptop Pro X1,Vikram Das,Chennai,55000,40000,1
+2026-06-15,SmartPhone Z9,Arjun Singh,Hyderabad,49800,36000,2
+2026-06-18,Laptop Pro X1,Rahul Sharma,Mumbai,165000,120000,3
+2026-07-10,Laptop Pro X1,Vikram Das,Chennai,55000,40000,1
+2026-07-13,SmartPhone Z9,Neha Gupta,Pune,74700,54000,3
+2026-07-19,Laptop Pro X1,Pooja Reddy,Bengaluru,110000,80000,2
+2026-07-28,Laptop Pro X1,Priya Mehta,Delhi,55000,40000,1
+2026-08-07,Laptop Pro X1,Rahul Sharma,Mumbai,55000,40000,1
+2026-08-16,Laptop Pro X1,Arjun Singh,Hyderabad,165000,120000,3
+2026-09-10,Laptop Pro X1,Rahul Sharma,Mumbai,55000,40000,1
+2026-09-17,Laptop Pro X1,Karan Mehta,Delhi,110000,80000,2
+2026-09-18,Laptop Pro X1,Vikram Das,Chennai,55000,40000,1`;
+      const result = Papa.parse(csv, { header:true, skipEmptyLines:true });
+      G.raw = result.data;
+      G.headers = result.meta.fields;
+      G.fileName = 'demo_sales_data.csv';
+      showPreview();
+    });
+}
+
+function showPreview() {
+  const preview = document.getElementById('file-preview');
+  preview.style.display = 'block';
+  document.getElementById('preview-title').textContent = G.fileName;
+  document.getElementById('preview-rows-badge').textContent = G.raw.length + ' rows';
+  document.getElementById('preview-cols-badge').textContent = G.headers.length + ' columns';
+
+  const tbl = document.getElementById('preview-table');
+  const head = '<thead><tr>' + G.headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
+  const rows = G.raw.slice(0,5).map(r => '<tr>' + G.headers.map(h => `<td>${r[h]||''}</td>`).join('') + '</tr>').join('');
+  tbl.innerHTML = head + '<tbody>' + rows + '</tbody>';
+
+  dropZone.style.display = 'none';
+}
+
+function resetUpload() {
+  G.raw = []; G.headers = []; G.colMap = {}; G.analytics = null;
+  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('drop-zone').style.display = 'block';
+  document.getElementById('file-input').value = '';
+  goToStep(1);
+}
+
+// ─── STEP NAVIGATION ────────────────────────────────────────────
+function goToStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('step-'+i).style.display = i===n ? 'block' : 'none';
+    const ws = document.getElementById('ws-'+i);
+    ws.classList.remove('active','done');
+    if (i < n) ws.classList.add('done');
+    else if (i === n) ws.classList.add('active');
+    if (i < 4) {
+      const wl = document.getElementById('wl-'+i);
+      wl.classList.toggle('done', i < n);
+    }
+  });
+}
+
+function goToStep2() {
+  if (!G.raw.length) return;
+  CURRENCY = detectCurrencySymbol(G.raw, G.headers[0]);
+  const { map, confidence } = detectColumns(G.headers);
+  G.colMap = map;
+  renderColMapping(confidence);
+  goToStep(2);
+}
+
+function renderColMapping(confidence) {
+  const grid = document.getElementById('col-map-grid');
+  const roleOptions = ['revenue','cost','profit','product','customer','date','qty','region','price','ignore'];
+  const roleLabels = { revenue:'Revenue/Sales', cost:'Cost/COGS', profit:'Profit/Net', product:'Product Name', customer:'Customer Name', date:'Date/Period', qty:'Quantity/Units', region:'Region/City', price:'Unit Price', ignore:'Ignore' };
+  const reverseMap = {};
+  for (const [k,v] of Object.entries(G.colMap)) reverseMap[v] = k;
+
+  grid.innerHTML = G.headers.map(h => {
+    const assigned = reverseMap[h] || 'ignore';
+    const conf = confidence[h] || 'low';
+    const confLabel = conf==='high'?'High':conf==='med'?'Medium':'Undetected';
+    const confClass = conf==='high'?'conf-high':conf==='med'?'conf-med':'conf-low';
+    const opts = roleOptions.map(r => `<option value="${r}" ${r===assigned?'selected':''}>${roleLabels[r]}</option>`).join('');
+    return `<div class="col-card">
+      <div class="col-header">
+        <span class="col-name">${h}</span>
+        <span class="conf-badge ${confClass}">${confLabel}</span>
+      </div>
+      <select class="col-select" data-header="${h}" onchange="updateColMap(this)"><option value="">— Select role —</option>${opts}</select>
+    </div>`;
+  }).join('');
+}
+
+function updateColMap(sel) {
+  const h = sel.dataset.header;
+  const role = sel.value;
+  // remove old mapping for this header
+  for (const k of Object.keys(G.colMap)) if (G.colMap[k]===h) delete G.colMap[k];
+  // remove old mapping for this role
+  if (role && role !== 'ignore') {
+    for (const [k,v] of Object.entries(G.colMap)) if (k===role) delete G.colMap[k];
+    G.colMap[role] = h;
+  }
+}
+
+// ─── PROCESSING ─────────────────────────────────────────────────
+function goToStep3() {
+  goToStep(3);
+  // detect currency from revenue column
+  if (G.colMap.revenue) CURRENCY = detectCurrencySymbol(G.raw, G.colMap.revenue) || CURRENCY || '';
+  runProcessing();
+}
+
+const PROC_DEF = [
+  { icon:'📥', label:'Parsing raw data', sub:'Reading rows and columns' },
+  { icon:'🧹', label:'Cleaning data', sub:'Removing empty rows, fixing formats' },
+  { icon:'🔢', label:'Normalising numbers', sub:'Stripping currency symbols, commas' },
+  { icon:'🧮', label:'Computing revenue & profit', sub:'Calculating totals and margins' },
+  { icon:'📦', label:'Aggregating products', sub:'Grouping by product name' },
+  { icon:'👥', label:'Analysing customers', sub:'Repeat buyers, LTV, segments' },
+  { icon:'🗺️', label:'Regional breakdown', sub:'Revenue by city / region' },
+  { icon:'📅', label:'Monthly trends', sub:'Month-over-month analysis' },
+  { icon:'🤖', label:'Running AI analysis', sub:'Generating personalised insights' },
+];
+
+function runProcessing() {
+  const container = document.getElementById('proc-steps');
+  container.innerHTML = PROC_DEF.map((s,i) =>
+    `<div class="proc-step" id="ps-${i}">
+      <div class="ps-icon" id="ps-ico-${i}">${s.icon}</div>
+      <div><div class="ps-label">${s.label}</div><div class="ps-sub" id="ps-sub-${i}">${s.sub}</div></div>
+    </div>`
+  ).join('');
+
+  let step = 0;
+  function nextStep() {
+    if (step > 0) {
+      const prev = document.getElementById('ps-'+(step-1));
+      prev.classList.remove('running'); prev.classList.add('done');
+      document.getElementById('ps-ico-'+(step-1)).textContent = '✓';
+    }
+    if (step >= PROC_DEF.length) {
+      document.getElementById('proc-title').textContent = '✅ Analysis Complete!';
+      document.getElementById('proc-sub').textContent = 'Navigating to results…';
+      setTimeout(() => { goToStep(4); showResults(); }, 600);
+      return;
+    }
+    const cur = document.getElementById('ps-'+step);
+    cur.classList.add('running');
+    document.getElementById('ps-ico-'+step).innerHTML = '<span class="spin">⏳</span>';
+    step++;
+    setTimeout(nextStep, 300 + Math.random()*250);
+  }
+  // Run actual computation on step 4 (calculate)
+  setTimeout(() => {
+    G.analytics = computeAnalytics();
+    generateInsights();
+    G.uploadCount++;
+    // update sidebar
+    document.getElementById('data-status-box').style.display='block';
+    document.getElementById('ds-file').textContent = G.fileName;
+    document.getElementById('ds-rows').textContent = G.analytics.cleanCount + ' rows processed';
+    document.getElementById('s-uploads').textContent = G.uploadCount;
+    document.getElementById('s-rows').textContent = (G.analytics.cleanCount).toLocaleString();
+    // update reports
+    const now = new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    for (let i=1;i<=5;i++) {
+      document.getElementById('rep-date-'+i).textContent = 'Generated '+now;
+      document.getElementById('rep-status-'+i).textContent = 'Ready';
+      document.getElementById('rep-status-'+i).className = 'badge b-g';
+    }
+  }, 100);
+
+  nextStep();
+}
+
+// ─── ANALYTICS ENGINE ───────────────────────────────────────────
+function computeAnalytics() {
+  const cm = G.colMap;
+  const raw = G.raw;
+
+  // 1. Clean rows
+  const clean = raw.map(r => {
+    const rev = cm.revenue ? parseNum(r[cm.revenue]) : NaN;
+    const cost = cm.cost ? parseNum(r[cm.cost]) : NaN;
+    const prf = cm.profit ? parseNum(r[cm.profit]) : NaN;
+    const qty = cm.qty ? (parseNum(r[cm.qty])||1) : 1;
+    const price = cm.price ? parseNum(r[cm.price]) : NaN;
+
+    // Derive revenue if missing
+    let revenue = isNaN(rev) ? (!isNaN(price) && qty ? price*qty : NaN) : rev;
+    if (isNaN(revenue) && !isNaN(prf) && !isNaN(cost)) revenue = prf + cost;
+
+    let profit = !isNaN(prf) ? prf : (!isNaN(cost) && !isNaN(revenue) ? revenue-cost : NaN);
+    if (isNaN(profit)) profit = revenue * 0.15; // estimate
+
+    return {
+      revenue,
+      profit,
+      cost: !isNaN(cost) ? cost : revenue - profit,
+      product: cm.product ? String(r[cm.product]||'Unknown Product').trim() : 'Unknown Product',
+      customer: cm.customer ? String(r[cm.customer]||'').trim() : null,
+      date: cm.date ? parseDate(r[cm.date]) : null,
+      region: cm.region ? String(r[cm.region]||'').trim() : null,
+      qty,
+    };
+  }).filter(r => !isNaN(r.revenue) && r.revenue > 0);
+
+  // 2. Totals
+  const totalRevenue = clean.reduce((s,r) => s+r.revenue,0);
+  const totalProfit  = clean.reduce((s,r) => s+r.profit,0);
+  const totalCost    = clean.reduce((s,r) => s+r.cost,0);
+  const avgMargin    = totalRevenue ? (totalProfit/totalRevenue*100) : 0;
+
+  // 3. Products
+  const prodMap = {};
+  clean.forEach(r => {
+    const p = r.product||'Unknown';
+    if (!prodMap[p]) prodMap[p]={name:p,revenue:0,profit:0,cost:0,units:0,orders:0};
+    prodMap[p].revenue+=r.revenue; prodMap[p].profit+=r.profit; prodMap[p].cost+=r.cost;
+    prodMap[p].units+=r.qty; prodMap[p].orders++;
+  });
+  const products = Object.values(prodMap).sort((a,b)=>b.revenue-a.revenue);
+  products.forEach(p => p.margin = p.revenue ? (p.profit/p.revenue*100) : 0);
+
+  // 4. Customers
+  const custMap = {};
+  if (cm.customer) {
+    clean.forEach(r => {
+      const c = r.customer||'Unknown';
+      if (!custMap[c]) custMap[c]={name:c,revenue:0,orders:0};
+      custMap[c].revenue+=r.revenue; custMap[c].orders++;
+    });
+  }
+  const customers = Object.values(custMap).sort((a,b)=>b.revenue-a.revenue);
+  const repeatCustomers = customers.filter(c=>c.orders>1).length;
+  const repeatRate = customers.length ? (repeatCustomers/customers.length*100) : 0;
+  const avgLTV = customers.length ? (totalRevenue/customers.length) : 0;
+
+  // 5. Regions
+  const regMap = {};
+  if (cm.region) {
+    clean.forEach(r => {
+      const reg = r.region||'Unknown';
+      if (!regMap[reg]) regMap[reg]={name:reg,revenue:0,profit:0,orders:0};
+      regMap[reg].revenue+=r.revenue; regMap[reg].profit+=r.profit; regMap[reg].orders++;
+    });
+  }
+  const regions = Object.values(regMap).sort((a,b)=>b.revenue-a.revenue);
+
+  // 6. Monthly trend
+  const monthMap = {};
+  clean.forEach(r => {
+    if (!r.date) return;
+    const key = r.date.month;
+    if (!monthMap[key]) monthMap[key]={label:key,short:r.date.monthShort,revenue:0,profit:0,orders:0,ts:r.date.ts};
+    monthMap[key].revenue+=r.revenue; monthMap[key].profit+=r.profit; monthMap[key].orders++;
+  });
+  const monthly = Object.values(monthMap).sort((a,b)=>a.ts-b.ts);
+
+  // 7. Growth (last month vs previous)
+  let growth = null, growthAbs = null;
+  if (monthly.length >= 2) {
+    const last = monthly[monthly.length-1].revenue;
+    const prev = monthly[monthly.length-2].revenue;
+    growth = prev ? ((last-prev)/prev*100) : null;
+    growthAbs = last - prev;
+  }
+
+  // 8. Orders count
+  const totalOrders = clean.length;
+  const avgOrderValue = totalOrders ? totalRevenue/totalOrders : 0;
+
+  return {
+    cleanCount: clean.length, totalRevenue, totalProfit, totalCost, avgMargin, growth, growthAbs,
+    products, customers, repeatCustomers, repeatRate, avgLTV, regions, monthly,
+    totalOrders, avgOrderValue, insights:[]
+  };
+}
+
+// ─── AI INSIGHTS ENGINE ─────────────────────────────────────────
+function generateInsights() {
+  const a = G.analytics;
+  const ins = [];
+  const M = a.avgMargin;
+  const G2 = a.growth;
+  const prods = a.products;
+  const custCount = a.customers.length;
+
+  // Margin health
+  if (M < 10) ins.push({type:'crit', title:'🚨 Critical: Margin Below 10%', text:`Your average margin is only ${M.toFixed(1)}%. This is unsustainably low. You must immediately cut costs or raise prices — every sale is barely profitable.`});
+  else if (M < 20) ins.push({type:'warn', title:'⚠️ Low Profit Margin', text:`Your margin is ${M.toFixed(1)}% — below the 20% benchmark. Renegotiate supplier costs or reduce discounting. A 5% improvement adds ${fmt(a.totalRevenue*0.05)} to profit.`});
+  else if (M >= 30) ins.push({type:'good', title:'✅ Excellent Margin', text:`Your ${M.toFixed(1)}% margin is outstanding! Focus on scaling revenue — your unit economics are healthy.`});
+  else ins.push({type:'good', title:'✅ Healthy Margin', text:`Your ${M.toFixed(1)}% margin is solid. Protect it while growing revenue.`});
+
+  // Growth
+  if (G2 !== null) {
+    if (G2 < -5) ins.push({type:'crit', title:'📉 Revenue Declining', text:`Revenue fell ${Math.abs(G2).toFixed(1)}% vs last period (${fmt(Math.abs(a.growthAbs))} lost). Investigate: price changes? lost customers? seasonality? Act now.`});
+    else if (G2 < 0) ins.push({type:'warn', title:'📉 Slight Revenue Dip', text:`Revenue slipped ${Math.abs(G2).toFixed(1)}% this period. Monitor closely — if it continues, review your sales channels and top product inventory.`});
+    else if (G2 > 20) ins.push({type:'good', title:'🚀 Strong Growth — '+G2.toFixed(1)+'%!', text:`Revenue grew ${G2.toFixed(1)}%! Make sure your supply chain can keep up. This is the time to lock in supplier contracts and increase stock.`});
+    else if (G2 > 0) ins.push({type:'good', title:'📈 Steady Growth — '+G2.toFixed(1)+'%', text:`Consistent growth of ${G2.toFixed(1)}%. Keep momentum by focusing on your top-performing products.`});
+  }
+
+  // Product concentration
+  if (prods.length > 1) {
+    const top = prods[0];
+    const share = a.totalRevenue ? (top.revenue/a.totalRevenue*100) : 0;
+    if (share > 60) ins.push({type:'warn', title:`⚠️ Over-reliance on ${top.name}`, text:`${top.name} accounts for ${share.toFixed(0)}% of revenue — dangerous concentration. If this product slows, your business suffers. Diversify aggressively.`});
+
+    // Best & worst product by margin
+    const byMargin = [...prods].sort((a,b)=>b.margin-a.margin);
+    const bestM = byMargin[0];
+    const worstM = byMargin[byMargin.length-1];
+    ins.push({type:'tip', title:`💡 Push ${bestM.name} — Highest Margin`, text:`${bestM.name} has a ${bestM.margin.toFixed(1)}% margin — your most profitable product. Increase its marketing budget for the biggest profit impact.`});
+    if (worstM.margin < 10 && prods.length > 1) ins.push({type:'action', title:`🗑️ Review ${worstM.name} (${worstM.margin.toFixed(1)}% margin)`, text:`${worstM.name} has very low margins. Consider discontinuing, repricing, or replacing suppliers. Each unit barely contributes to profit.`});
+  }
+
+  // Customer retention
+  if (custCount > 0) {
+    if (a.repeatRate < 25) ins.push({type:'action', title:'🔁 Poor Customer Retention', text:`Only ${a.repeatRate.toFixed(0)}% of customers return. Introduce a loyalty program — increasing repeat rate to 40% could add ${fmt(a.totalRevenue * 0.2)} in incremental revenue.`});
+    else if (a.repeatRate > 50) ins.push({type:'good', title:'🔁 Excellent Retention', text:`${a.repeatRate.toFixed(0)}% repeat customers — outstanding! Your customer satisfaction is high. Now focus on growing new customer acquisition.`});
+    ins.push({type:'tip', title:`👑 VIP Focus: ${a.customers[0]?.name}`, text:`Your top customer ${a.customers[0]?.name} spent ${fmt(a.customers[0]?.revenue)}. Identify your top 10% of customers and offer them exclusive deals — they drive disproportionate revenue.`});
+  }
+
+  // Regional
+  if (a.regions.length > 1) {
+    const top = a.regions[0];
+    const bot = a.regions[a.regions.length-1];
+    ins.push({type:'tip', title:`🗺️ Expand in ${top.name}`, text:`${top.name} is your strongest region with ${fmt(top.revenue)} revenue. Double down here — more marketing, faster delivery, local partnerships.`});
+    if (a.regions.length > 2) ins.push({type:'action', title:`📍 Investigate ${bot.name}`, text:`${bot.name} generates only ${fmt(bot.revenue)} — investigate why. Is it distribution, pricing, or lack of marketing? Target it as a growth opportunity.`});
+  }
+
+  // What to do (priority summary)
+  const actionItems = ins.filter(i=>i.type==='action'||i.type==='crit'||i.type==='warn').length;
+  ins.push({type:'tip', title:'🎯 What Should I Do?', text:`Priority actions (${actionItems} urgent): ${ins.filter(i=>i.type==='crit'||i.type==='warn').map(i=>i.title.replace(/^[^\w]+ /,'')).slice(0,3).join('; ')||'Focus on growth'}. Start with margin improvement — it has the fastest ROI.`});
+
+  a.insights = ins;
+  document.getElementById('ai-bdg').textContent = ins.filter(i=>i.type==='crit'||i.type==='warn').length;
+}
+
+// ─── SHOW RESULTS ───────────────────────────────────────────────
+function showResults() {
+  const a = G.analytics;
+  if (!a) return;
+
+  // Hero
+  const growthStr = a.growth !== null ? ` Revenue trend: ${a.growth>=0?'↑':'↓'}${Math.abs(a.growth).toFixed(1)}%` : '';
+  document.getElementById('hero-title').textContent = `Analysis complete — ${a.cleanCount} rows processed`;
+  document.getElementById('hero-desc').textContent = `Total Revenue: ${fmt(a.totalRevenue)}  ·  Profit: ${fmt(a.totalProfit)}  ·  Margin: ${a.avgMargin.toFixed(1)}%  ·  Products: ${a.products.length}  ·  Customers: ${a.customers.length}${growthStr}`;
+
+  // Result cards
+  const cards = document.getElementById('result-cards');
+  const gCls = a.growth >= 0 ? 'up' : 'dn';
+  const gStr = a.growth !== null ? `<div class="card-delta ${gCls}">${a.growth>=0?'↑':'↓'} ${Math.abs(a.growth).toFixed(1)}% MoM</div>` : '';
+  cards.innerHTML = `
+    <div class="rc"><div class="rc-val">${fmt(a.totalRevenue)}</div><div class="rc-lbl">Total Revenue</div></div>
+    <div class="rc"><div class="rc-val">${fmt(a.totalProfit)}</div><div class="rc-lbl">Total Profit</div></div>
+    <div class="rc"><div class="rc-val">${a.avgMargin.toFixed(1)}%</div><div class="rc-lbl">Avg Margin</div></div>
+    <div class="rc"><div class="rc-val">${a.customers.length||a.cleanCount}</div><div class="rc-lbl">Customers</div></div>
+    <div class="rc"><div class="rc-val">${a.products.length}</div><div class="rc-lbl">Products</div></div>`;
+
+  // Insights
+  const insDiv = document.getElementById('result-insights');
+  insDiv.innerHTML = a.insights.slice(0,4).map(i =>
+    `<div class="insight ${i.type}"><strong>${i.title}</strong><p>${i.text}</p></div>`
+  ).join('');
+
+  // Products table
+  const tbody = document.getElementById('result-products-body');
+  tbody.innerHTML = a.products.map((p,i) => {
+    const sh = a.totalRevenue ? (p.revenue/a.totalRevenue*100) : 0;
+    const cls = p.margin>=25?'b-g':p.margin>=15?'b-y':'b-r';
+    return `<tr>
+      <td class="fw6">${p.name}</td>
+      <td>${fmt(p.revenue)} (${sh.toFixed(0)}%)</td>
+      <td>${fmt(p.profit)}</td>
+      <td><span class="badge ${cls}">${p.margin.toFixed(1)}%</span></td>
+      <td>${p.units}</td>
+      <td><div class="tbar"><div class="tbar-f" style="width:${sh}%;background:${p.margin>=25?'var(--green)':p.margin>=15?'var(--yellow)':'var(--red)'}"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── RENDER: DASHBOARD ──────────────────────────────────────────
+let dbChart = null;
+function renderDashboard() {
+  const a = G.analytics;
+  if (!a) { renderSampleDashboard(); return; }
+  document.getElementById('db-subtitle').textContent = `${a.cleanCount} rows · ${a.products.length} products · ${a.customers.length} customers`;
+  document.getElementById('db-data-label').textContent = 'Live Data';
+
+  // KPIs
+  const gCls = a.growth >= 0 ? 'up' : 'dn';
+  setKPI('kpi-revenue', fmt(a.totalRevenue), a.growth !== null ? `${a.growth>=0?'↑':'↓'} ${Math.abs(a.growth).toFixed(1)}% MoM` : '', gCls);
+  setKPI('kpi-profit', fmt(a.totalProfit), `${a.avgMargin.toFixed(1)}% margin`, a.avgMargin>=20?'up':'dn');
+  setKPI('kpi-customers', a.customers.length||a.cleanCount, a.repeatRate ? `${a.repeatRate.toFixed(0)}% repeat` : '', 'up');
+  setKPI('kpi-margin', a.avgMargin.toFixed(1)+'%', a.avgMargin>=20?'Healthy':'Needs work', a.avgMargin>=20?'up':'dn');
+
+  // Chart
+  buildDBChart(a.monthly, 'all');
+
+  // Insights
+  const ins = a.insights.slice(0,3);
+  document.getElementById('db-insights').innerHTML = ins.map(i =>
+    `<div class="insight ${i.type}"><strong>${i.title}</strong><p>${i.text}</p></div>`
+  ).join('');
+  document.getElementById('ai-panel-sub').textContent = `${a.insights.length} insights from your data`;
+
+  // Products table
+  const tbody = document.getElementById('db-products-body');
+  tbody.innerHTML = a.products.map(p => {
+    const sh = a.totalRevenue ? (p.revenue/a.totalRevenue*100) : 0;
+    const cls = p.margin>=25?'b-g':p.margin>=15?'b-y':'b-r';
+    return `<tr>
+      <td class="fw6">${p.name}</td>
+      <td>${p.units}</td>
+      <td>${fmt(p.revenue)}</td>
+      <td>${fmt(p.profit)}</td>
+      <td>${p.margin.toFixed(1)}%</td>
+      <td><div class="tbar"><div class="tbar-f" style="width:${Math.min(sh*1.5,100)}%;background:${p.margin>=25?'var(--green)':p.margin>=15?'var(--yellow)':'var(--red)'}"></div></div></td>
+      <td><span class="badge ${cls}">${p.margin>=25?'● Strong':p.margin>=15?'● Average':'● Weak'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function setKPI(id, val, delta, cls) {
+  document.getElementById(id).textContent = val;
+  const d = document.getElementById(id+'-d');
+  if (d) { d.textContent = delta; d.className = 'card-delta ' + (cls||''); }
+}
+
+function buildDBChart(monthly, period) {
+  const ctx = document.getElementById('dbRevChart').getContext('2d');
+  let data = monthly;
+  if (period === '6m') data = monthly.slice(-6);
+  if (period === '3m') data = monthly.slice(-3);
+
+  if (G.charts.dbRev) G.charts.dbRev.destroy();
+  const g1 = ctx.createLinearGradient(0,0,0,210); g1.addColorStop(0,'rgba(99,102,241,.32)'); g1.addColorStop(1,'rgba(99,102,241,.01)');
+  const g2 = ctx.createLinearGradient(0,0,0,210); g2.addColorStop(0,'rgba(16,185,129,.22)'); g2.addColorStop(1,'rgba(16,185,129,.01)');
+  G.charts.dbRev = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: data.map(m=>m.short||m.label),
+      datasets:[
+        {label:'Revenue',data:data.map(m=>m.revenue),borderColor:'#6366f1',backgroundColor:g1,fill:true,tension:.45,pointBackgroundColor:'#6366f1',pointRadius:4,pointHoverRadius:7,borderWidth:2.5},
+        {label:'Profit',data:data.map(m=>m.profit),borderColor:'#10b981',backgroundColor:g2,fill:true,tension:.45,pointBackgroundColor:'#10b981',pointRadius:4,pointHoverRadius:7,borderWidth:2.5}
+      ]
+    },
+    options: chartOpts()
+  });
+}
+
+function dbSwitchPeriod(btn, period) {
+  document.querySelectorAll('#db-period-tabs .ptab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  if (G.analytics) buildDBChart(G.analytics.monthly, period);
+}
+
+function renderSampleDashboard() {
+  setKPI('kpi-revenue','₹8.40L','↑ Sample data','up');
+  setKPI('kpi-profit','₹1.18L','↓ Sample data','dn');
+  setKPI('kpi-customers','1,248','Sample data','neu');
+  setKPI('kpi-margin','14.0%','Sample data','neu');
+  document.getElementById('db-products-body').innerHTML = `
+    <tr><td class="fw6">💻 Laptop</td><td>42</td><td>₹23.1L</td><td>₹5.0L</td><td>21.6%</td><td><div class="tbar"><div class="tbar-f" style="width:85%;background:var(--green)"></div></div></td><td><span class="badge b-g">● Strong</span></td></tr>
+    <tr><td class="fw6">📱 Phone</td><td>85</td><td>₹21.2L</td><td>₹4.1L</td><td>19.3%</td><td><div class="tbar"><div class="tbar-f" style="width:78%;background:var(--green)"></div></div></td><td><span class="badge b-g">● Strong</span></td></tr>
+    <tr><td class="fw6">🪑 Chair</td><td>120</td><td>₹5.4L</td><td>₹1.8L</td><td>33.3%</td><td><div class="tbar"><div class="tbar-f" style="width:48%;background:var(--yellow)"></div></div></td><td><span class="badge b-y">● Average</span></td></tr>`;
+  // Sample chart
+  const ctx = document.getElementById('dbRevChart').getContext('2d');
+  if (G.charts.dbRev) G.charts.dbRev.destroy();
+  const g1=ctx.createLinearGradient(0,0,0,210); g1.addColorStop(0,'rgba(99,102,241,.32)'); g1.addColorStop(1,'rgba(99,102,241,.01)');
+  G.charts.dbRev = new Chart(ctx,{type:'line',data:{labels:['Apr','May','Jun','Jul','Aug','Sep'],datasets:[{label:'Revenue',data:[4.2,5.1,6.3,7.0,7.8,8.4],borderColor:'#6366f1',backgroundColor:g1,fill:true,tension:.45,pointBackgroundColor:'#6366f1',pointRadius:4,borderWidth:2.5}]},options:chartOpts()});
+}
+
+renderSampleDashboard();
+
+// ─── RENDER: SALES ──────────────────────────────────────────────
+let salesTChart=null,salesCChart=null;
+function renderSales() {
+  const a = G.analytics;
+  if (!a) { document.getElementById('sales-no-data').style.display='block'; document.getElementById('sales-content').style.display='none'; return; }
+  document.getElementById('sales-no-data').style.display='none';
+  document.getElementById('sales-content').style.display='block';
+
+  // KPIs
+  document.getElementById('sa-orders').textContent = a.totalOrders;
+  document.getElementById('sa-aov').textContent = fmt(a.avgOrderValue);
+  document.getElementById('sa-repeat').textContent = a.repeatCustomers;
+  document.getElementById('sa-repeat-d').textContent = a.repeatRate.toFixed(0)+'% of customers';
+  document.getElementById('sa-prods').textContent = a.products.length;
+  document.getElementById('sa-prods-d').textContent = 'unique products';
+
+  // Trend chart
+  if (salesTChart) salesTChart.destroy();
+  const ctx1 = document.getElementById('salesTrendChart').getContext('2d');
+  salesTChart = new Chart(ctx1,{type:'bar',data:{
+    labels: a.monthly.map(m=>m.short||m.label),
+    datasets:[
+      {label:'Revenue',data:a.monthly.map(m=>m.revenue),backgroundColor:'rgba(99,102,241,.75)',borderRadius:6,borderSkipped:false},
+      {label:'Profit',data:a.monthly.map(m=>m.profit),backgroundColor:'rgba(16,185,129,.65)',borderRadius:6,borderSkipped:false}
+    ]},options:chartOpts()});
+
+  // Category donut
+  if (salesCChart) salesCChart.destroy();
+  const ctx2 = document.getElementById('salesCatChart').getContext('2d');
+  salesCChart = new Chart(ctx2,{type:'doughnut',data:{
+    labels:a.products.map(p=>p.name),
+    datasets:[{data:a.products.map(p=>+(p.revenue/a.totalRevenue*100).toFixed(1)),backgroundColor:['#6366f1','#8b5cf6','#06b6d4','#f59e0b','#f97316','#10b981'],borderWidth:0,hoverOffset:6}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(8,12,20,.95)',bodyColor:'#94a3b8'}}}});
+
+  // Regions
+  const regDiv = document.getElementById('sales-regions');
+  if (a.regions.length) {
+    const max = a.regions[0].revenue;
+    regDiv.innerHTML = a.regions.slice(0,6).map(r =>
+      `<div style="margin-bottom:13px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>${r.name}</span><span class="fw6">${fmt(r.revenue)}</span></div>
+        <div class="prog-wrap"><div class="prog-fill" style="width:${(r.revenue/max*100).toFixed(0)}%;background:var(--accent)"></div></div>
+      </div>`).join('');
+  } else {
+    regDiv.innerHTML = '<div style="font-size:13px;color:var(--t3)">No region column detected in your data.</div>';
+  }
+}
+
+function switchSalesType(btn, type) {
+  document.querySelectorAll('#page-sales .ptab').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
+  if (salesTChart) salesTChart.destroy();
+  const ctx=document.getElementById('salesTrendChart').getContext('2d');
+  const a=G.analytics; if(!a) return;
+  const ds1={label:'Revenue',data:a.monthly.map(m=>m.revenue)};
+  const ds2={label:'Profit',data:a.monthly.map(m=>m.profit)};
+  if(type==='bar'){ds1.backgroundColor='rgba(99,102,241,.75)';ds1.borderRadius=6;ds1.borderSkipped=false;ds2.backgroundColor='rgba(16,185,129,.65)';ds2.borderRadius=6;ds2.borderSkipped=false;}
+  else{ds1.borderColor='#6366f1';ds1.backgroundColor='rgba(99,102,241,.15)';ds1.fill=true;ds1.tension=.45;ds1.pointBackgroundColor='#6366f1';ds1.pointRadius=4;ds1.borderWidth=2.5;ds2.borderColor='#10b981';ds2.backgroundColor='rgba(16,185,129,.12)';ds2.fill=true;ds2.tension=.45;ds2.pointBackgroundColor='#10b981';ds2.pointRadius=4;ds2.borderWidth=2.5;}
+  salesTChart=new Chart(ctx,{type,data:{labels:a.monthly.map(m=>m.short||m.label),datasets:[ds1,ds2]},options:chartOpts()});
+}
+
+// ─── RENDER: CUSTOMERS ──────────────────────────────────────────
+let custGChart=null,custRChart=null;
+function renderCustomers() {
+  const a = G.analytics;
+  if (!a || !a.customers.length) { document.getElementById('cust-no-data').style.display='block'; document.getElementById('cust-content').style.display='none'; return; }
+  document.getElementById('cust-no-data').style.display='none'; document.getElementById('cust-content').style.display='block';
+
+  document.getElementById('cu-total').textContent = a.customers.length;
+  document.getElementById('cu-repeat').textContent = a.repeatCustomers;
+  document.getElementById('cu-repeat-pct').textContent = a.repeatRate.toFixed(0)+'% retention rate';
+  document.getElementById('cu-ltv').textContent = fmt(a.avgLTV);
+  document.getElementById('cu-top').textContent = fmt(a.customers[0]?.revenue||0);
+
+  // Growth chart (cumulative monthly orders as proxy for growth)
+  if (custGChart) custGChart.destroy();
+  const ctx1=document.getElementById('custGrowthChart').getContext('2d');
+  let cum=0;
+  const cumOrders=a.monthly.map(m=>{cum+=m.orders;return cum;});
+  const gx=ctx1.createLinearGradient(0,0,0,200); gx.addColorStop(0,'rgba(6,182,212,.3)'); gx.addColorStop(1,'rgba(6,182,212,.01)');
+  custGChart=new Chart(ctx1,{type:'line',data:{labels:a.monthly.map(m=>m.short||m.label),datasets:[{label:'Cumul. Orders',data:cumOrders,borderColor:'#06b6d4',backgroundColor:gx,fill:true,tension:.45,pointBackgroundColor:'#06b6d4',pointRadius:4,borderWidth:2.5}]},options:chartOpts()});
+
+  // Retention donut
+  if (custRChart) custRChart.destroy();
+  const ctx2=document.getElementById('custRetChart').getContext('2d');
+  const newC=a.customers.length-a.repeatCustomers;
+  custRChart=new Chart(ctx2,{type:'doughnut',data:{labels:['New','Repeat'],datasets:[{data:[newC,a.repeatCustomers],backgroundColor:['#6366f1','#10b981'],borderWidth:0,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(8,12,20,.95)',bodyColor:'#94a3b8'}}}});
+  document.getElementById('ret-new-lbl').textContent=`New customers — ${newC}`;
+  document.getElementById('ret-rep-lbl').textContent=`Repeat customers — ${a.repeatCustomers}`;
+
+  // Table
+  const tbody=document.getElementById('cust-table-body');
+  tbody.innerHTML=a.customers.slice(0,10).map((c,i)=>{
+    const seg=c.revenue>a.avgLTV*2?'b-g VIP':c.orders>1?'b-p Regular':'b-c New';
+    return `<tr><td>${i+1}</td><td class="fw6">${c.name}</td><td>${c.orders}</td><td>${fmt(c.revenue)}</td><td>${fmt(c.revenue/c.orders)}</td><td><span class="badge ${seg.split(' ')[0]}">${seg.split(' ')[1]}</span></td></tr>`;
+  }).join('');
+}
+
+// ─── RENDER: PRODUCTS ───────────────────────────────────────────
+let prodBChart=null;
+function renderProducts() {
+  const a = G.analytics;
+  if (!a || !a.products.length) { document.getElementById('prod-no-data').style.display='block'; document.getElementById('prod-content').style.display='none'; return; }
+  document.getElementById('prod-no-data').style.display='none'; document.getElementById('prod-content').style.display='block';
+
+  const byMargin=[...a.products].sort((a,b)=>b.margin-a.margin);
+  document.getElementById('pr-count').textContent=a.products.length;
+  document.getElementById('pr-best').textContent=a.products[0].name;
+  document.getElementById('pr-worst').textContent=byMargin[byMargin.length-1].name;
+  document.getElementById('pr-margin').textContent=a.avgMargin.toFixed(1)+'%';
+
+  // Product cards
+  const EMOJIS={'laptop':'💻','phone':'📱','mobile':'📱','chair':'🪑','table':'🪞','shirt':'👕','book':'📚','watch':'⌚','tv':'📺','computer':'🖥️'};
+  function getEmoji(name){const n=name.toLowerCase();for(const[k,v]of Object.entries(EMOJIS))if(n.includes(k))return v;return '📦';}
+
+  const grid=document.getElementById('prod-cards');
+  grid.innerHTML=a.products.map(p=>{
+    const sh=a.totalRevenue?(p.revenue/a.totalRevenue*100).toFixed(0):0;
+    const cls=p.margin>=25?'b-g':p.margin>=15?'b-y':'b-r';
+    const stk=p.margin>=25?'● Strong':p.margin>=15?'● Average':'● Weak';
+    return `<div class="prod-card">
+      <div style="font-size:30px">${getEmoji(p.name)}</div>
+      <div style="font-size:14px;font-weight:700">${p.name}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:-4px">${sh}% of total revenue</div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <div><div style="font-size:10.5px;color:var(--t3)">Revenue</div><div class="fw6">${fmt(p.revenue)}</div></div>
+        <div><div style="font-size:10.5px;color:var(--t3)">Profit</div><div class="fw6">${fmt(p.profit)}</div></div>
+        <div><div style="font-size:10.5px;color:var(--t3)">Units</div><div class="fw6">${p.units}</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="badge ${cls}">${stk}</span>
+        <span style="font-size:12px;font-weight:700;color:${p.margin>=25?'var(--green)':p.margin>=15?'var(--yellow)':'var(--red)'}">${p.margin.toFixed(1)}% margin</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Bar chart
+  if (prodBChart) prodBChart.destroy();
+  const ctx=document.getElementById('prodBarChart').getContext('2d');
+  prodBChart=new Chart(ctx,{type:'bar',data:{
+    labels:a.products.map(p=>p.name),
+    datasets:[{label:'Revenue',data:a.products.map(p=>p.revenue),backgroundColor:'rgba(99,102,241,.75)',borderRadius:7,borderSkipped:false},{label:'Profit',data:a.products.map(p=>p.profit),backgroundColor:'rgba(16,185,129,.65)',borderRadius:7,borderSkipped:false}]
+  },options:chartOpts()});
+}
+
+// ─── RENDER: AI PAGE ────────────────────────────────────────────
+function renderAIPage() {
+  const a = G.analytics;
+  if (!a) {
+    document.getElementById('ai-subtitle').textContent='Upload your data for personalised insights';
+    document.getElementById('ai-model-sub').textContent='Waiting for data upload';
+    document.getElementById('ai-page-insights').innerHTML='<div style="font-size:13px;color:var(--t3);text-align:center;padding:20px">Upload data to generate insights</div>';
+    document.getElementById('insights-count').textContent='0';
+    document.getElementById('health-stats').innerHTML=`<div class="stat-row"><span style="font-size:13px;color:var(--t2)">Data Status</span><span class="badge b-y">No Data</span></div>`;
+    return;
+  }
+  document.getElementById('ai-subtitle').textContent=`Analysing ${a.cleanCount} rows · ${a.products.length} products · ${a.customers.length} customers`;
+  document.getElementById('ai-model-sub').textContent=`${a.insights.length} insights from your data`;
+  document.getElementById('insights-count').textContent=a.insights.filter(i=>i.type==='crit'||i.type==='warn').length;
+  document.getElementById('ai-page-insights').innerHTML=a.insights.slice(0,5).map(i=>
+    `<div class="insight ${i.type}"><strong>${i.title}</strong><p>${i.text}</p></div>`
+  ).join('');
+
+  const score = Math.min(100, Math.round(
+    (a.avgMargin>=20?30:a.avgMargin>=10?15:5) +
+    (a.growth>10?20:a.growth>=0?10:0) +
+    (a.repeatRate>=40?20:a.repeatRate>=25?10:5) +
+    (a.products.length>=3?15:10) +
+    (a.customers.length>=5?15:5)
+  ));
+  const scoreCls = score>=70?'up':score>=50?'b-y':'dn';
+  document.getElementById('health-stats').innerHTML=`
+    <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Data Status</span><span class="badge b-g">Loaded ✓</span></div>
+    <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Total Revenue</span><span style="font-size:13px;font-weight:700">${fmt(a.totalRevenue)}</span></div>
+    <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Avg Margin</span><span style="font-size:13px;font-weight:700;color:${a.avgMargin>=20?'var(--green)':'var(--yellow)'}">${a.avgMargin.toFixed(1)}%</span></div>
+    <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Repeat Rate</span><span style="font-size:13px;font-weight:700">${a.repeatRate.toFixed(0)}%</span></div>
+    <div class="stat-row"><span style="font-size:13px;color:var(--t2)">MoM Growth</span><span style="font-size:13px;font-weight:700;color:${(a.growth||0)>=0?'var(--green)':'var(--red)'}">${a.growth!==null?(a.growth>=0?'↑':'↓')+Math.abs(a.growth).toFixed(1)+'%':'N/A'}</span></div>
+    <div class="stat-row"><span style="font-size:13px;color:var(--t2)">Business Health</span><span style="font-size:14px;font-weight:700;color:${score>=70?'var(--green)':score>=50?'var(--yellow)':'var(--red)'}">${score}/100</span></div>`;
+}
+
+// ─── AI CHAT ────────────────────────────────────────────────────
+function appendAIMsg(text, type, boxId) {
+  const box = document.getElementById(boxId||'ai-chat-messages');
+  const d = document.createElement('div');
+  d.className='bubble b-'+type; d.textContent=text;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+}
+function showTypingIn(boxId) {
+  const box=document.getElementById(boxId||'ai-chat-messages');
+  const d=document.createElement('div'); d.id='typing-'+boxId; d.className='typing-wrap';
+  d.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+}
+function removeTypingFrom(boxId) { const e=document.getElementById('typing-'+boxId); if(e) e.remove(); }
+
+function getAIResponse(q) {
+  const a = G.analytics;
+  const ql = q.toLowerCase();
+
+  if (!a) {
+    if (ql.includes('upload') || ql.includes('data') || ql.includes('file')) return "To get personalised insights, click 'Upload Data' in the sidebar and upload your CSV or Excel file. I'll instantly analyse your revenue, profit, products, and customers!";
+    return "I need your business data to give you personalised insights! Click '📤 Upload Data' in the sidebar. You can also try the 'Load Demo CSV' button on the upload page to see how it works.";
+  }
+
+  if (ql.match(/what should i do|what to do|action|advice|recommend|next step/)) {
+    const crit = a.insights.filter(i=>i.type==='crit'||i.type==='warn').slice(0,2);
+    const tips = a.insights.filter(i=>i.type==='tip'||i.type==='action').slice(0,2);
+    return `Based on your data, here are your top priorities:\n\n${crit.concat(tips).map((i,n)=>`${n+1}. ${i.title.replace(/^[^\w]+/,'')}\n   ${i.text}`).join('\n\n')}`;
+  }
+  if (ql.match(/profit|margin|loss|cost/)) {
+    return `Your total profit is ${fmt(a.totalProfit)} with an average margin of ${a.avgMargin.toFixed(1)}%. ${a.avgMargin<20?'This is below the 20% benchmark. Your biggest lever is reducing COGS — even a 5% cost reduction would add '+fmt(a.totalRevenue*0.05)+' to profit.':'Your margins are healthy. Focus on scaling revenue while protecting this margin.'}`;
+  }
+  if (ql.match(/revenue|sales|income/)) {
+    const g=a.growth!==null?` Month-over-month growth is ${a.growth.toFixed(1)}%.`:'';
+    return `Total revenue is ${fmt(a.totalRevenue)} from ${a.totalOrders} orders (avg order value: ${fmt(a.avgOrderValue)}).${g} Your top product by revenue is ${a.products[0]?.name||'unknown'} at ${fmt(a.products[0]?.revenue||0)}.`;
+  }
+  if (ql.match(/best|top|promote|market|focus/)) {
+    const byM=[...a.products].sort((x,y)=>y.margin-x.margin)[0];
+    const byR=a.products[0];
+    return `By revenue: ${byR.name} (${fmt(byR.revenue)}, ${byR.margin.toFixed(1)}% margin)\nBy margin: ${byM.name} (${fmt(byM.revenue)}, ${byM.margin.toFixed(1)}% margin)\n\nI recommend marketing ${byM.name} more aggressively — highest margin means most profit per sale.`;
+  }
+  if (ql.match(/worst|weak|poor|problem|bad/)) {
+    const worst=[...a.products].sort((x,y)=>x.margin-y.margin)[0];
+    return `Your lowest-margin product is ${worst.name} at ${worst.margin.toFixed(1)}% margin (${fmt(worst.revenue)} revenue). Consider: (1) Raising its price by 10-15%, (2) Finding a cheaper supplier, (3) Discontinuing it if it can't be improved.`;
+  }
+  if (ql.match(/customer|client|buyer|retain|loyalty/)) {
+    return `You have ${a.customers.length} customers. ${a.repeatCustomers} (${a.repeatRate.toFixed(0)}%) are repeat buyers. Average customer value: ${fmt(a.avgLTV)}. Your top customer is ${a.customers[0]?.name} (${fmt(a.customers[0]?.revenue)}).${a.repeatRate<30?' Retention is low — consider a loyalty program or follow-up emails after purchase.':' Retention is healthy!'}`;
+  }
+  if (ql.match(/region|city|state|location|area|where/)) {
+    if (!a.regions.length) return "No region column was detected in your data. To get regional insights, include a City, State, or Region column in your file and re-upload.";
+    return `Top regions by revenue:\n${a.regions.slice(0,3).map((r,i)=>`${i+1}. ${r.name}: ${fmt(r.revenue)} (${(r.revenue/a.totalRevenue*100).toFixed(0)}% of total)`).join('\n')}\n\nFocus marketing in ${a.regions[0].name} — your strongest market.`;
+  }
+  if (ql.match(/forecast|predict|next|future/)) {
+    if (a.monthly.length < 2) return "I need at least 2 months of data to forecast. Upload a file with a Date column spanning multiple months.";
+    const avgGrowth=a.monthly.length>=2?a.monthly.slice(-2).reduce((s,m,i,arr)=>i?s+(m.revenue-arr[i-1].revenue)/arr[i-1].revenue:s,0)*100:0;
+    const last=a.monthly[a.monthly.length-1];
+    const forecast=last.revenue*(1+avgGrowth/100);
+    return `Based on your trend, next period forecast:\n• Revenue: ~${fmt(forecast)}\n• Profit: ~${fmt(forecast*a.avgMargin/100)}\n\nNote: This assumes ${avgGrowth.toFixed(1)}% growth continues. Actual results depend on market conditions.`;
+  }
+  if (ql.match(/growth|grow|trend/)) {
+    if (a.growth===null) return "I need data with dates spanning multiple months to calculate growth. Add a Date column to your file.";
+    return `Month-over-month growth: ${a.growth.toFixed(1)}% (${a.growth>=0?'↑ '+fmt(a.growthAbs)+' gained':'↓ '+fmt(Math.abs(a.growthAbs))+' lost'}). ${a.growth>10?'Strong growth! Keep up the momentum.':a.growth>=0?'Steady. Look for ways to accelerate.':'Revenue declining. Investigate your top channels urgently.'}`;
+  }
+
+  // Generic fallback with actual data
+  return `Based on your ${a.cleanCount} transactions: Revenue ${fmt(a.totalRevenue)}, Profit ${fmt(a.totalProfit)}, Margin ${a.avgMargin.toFixed(1)}%, ${a.products.length} products, ${a.customers.length} customers. Ask me about: profit, revenue, best products, customers, regions, growth, or "what should I do?"`;
+}
+
+// ─── GEMINI API ──────────────────────────────────────────────────
+function getGeminiKey() { return localStorage.getItem('bb_gemini_key') || ''; }
+
+function saveGeminiKey() {
+  const key = document.getElementById('gemini-key-input').value.trim();
+  if (!key) { showTestResult('Please paste your API key first.', false); return; }
+  localStorage.setItem('bb_gemini_key', key);
+  showTestResult('Testing connection…', null);
+  testGeminiConnection(key);
+}
+
+function clearGeminiKey() {
+  localStorage.removeItem('bb_gemini_key');
+  document.getElementById('gemini-key-input').value='';
+  updateGeminiUI(false);
+  showTestResult('API key removed.', false);
+}
+
+function showTestResult(msg, ok) {
+  const el=document.getElementById('gemini-test-result');
+  el.style.display='block';
+  el.style.color = ok===null ? 'var(--t3)' : ok ? 'var(--green)' : 'var(--red)';
+  el.textContent = msg;
+}
+
+async function testGeminiConnection(key) {
+  try {
+    const res = await callGeminiRaw('Reply with exactly: OK', key);
+    if (res) { updateGeminiUI(true); showTestResult('✓ Connected! Gemini is ready.', true); }
+    else { showTestResult('✗ Connection failed. Check your API key.', false); }
+  } catch(e) { showTestResult('✗ Error: ' + e.message, false); }
+}
+
+function updateGeminiUI(connected) {
+  const badge = document.getElementById('gemini-status-badge');
+  const modeLabel = document.getElementById('ai-mode-label');
+  const aiModeBadge = document.getElementById('ai-mode-chip');
+  if (badge) { badge.textContent = connected ? '✓ Connected' : 'Not Connected'; badge.className = connected ? 'badge b-g' : 'badge b-y'; }
+  if (modeLabel) modeLabel.textContent = connected ? 'Gemini 2.0 Flash (live)' : 'Local (offline)';
+  if (aiModeBadge) { aiModeBadge.textContent = connected ? '🌐 Gemini AI' : '💻 Local AI'; aiModeBadge.className = connected ? 'chip' : 'chip'; aiModeBadge.style.borderColor = connected ? 'rgba(16,185,129,.4)' : ''; aiModeBadge.style.color = connected ? 'var(--green)' : ''; }
+}
+
+async function callGeminiRaw(prompt, key) {
+  const apiKey = key || getGeminiKey();
+  if (!apiKey) return null;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const body = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 600, topP: 0.95 },
+    safetySettings: [
+      { category:'HARM_CATEGORY_HARASSMENT', threshold:'BLOCK_NONE' },
+      { category:'HARM_CATEGORY_HATE_SPEECH', threshold:'BLOCK_NONE' }
+    ]
+  };
+  const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || 'API error ' + res.status); }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+}
+
+function buildGeminiContext() {
+  const a = G.analytics;
+  if (!a) return 'No business data has been uploaded yet. Encourage the user to upload their CSV or Excel file.';
+  const top3prod = a.products.slice(0,3).map(p=>`${p.name} (${fmt(p.revenue)} revenue, ${p.margin.toFixed(1)}% margin)`).join(', ');
+  const top3cust = a.customers.slice(0,3).map(c=>`${c.name}: ${fmt(c.revenue)}`).join(', ');
+  const top3reg  = a.regions.slice(0,3).map(r=>`${r.name}: ${fmt(r.revenue)}`).join(', ');
+  const monthly  = a.monthly.map(m=>`${m.short||m.label}: Rev ${fmt(m.revenue)}, Profit ${fmt(m.profit)}`).join(' | ');
+  return `BUSINESS DATA SUMMARY (from uploaded file: ${G.fileName})
+- Total Revenue: ${fmt(a.totalRevenue)}
+- Total Profit: ${fmt(a.totalProfit)}
+- Average Margin: ${a.avgMargin.toFixed(1)}%
+- Total Orders: ${a.totalOrders}
+- Avg Order Value: ${fmt(a.avgOrderValue)}
+- Month-over-Month Growth: ${a.growth!==null?a.growth.toFixed(1)+'%':'not enough data'}
+- Total Customers: ${a.customers.length}
+- Repeat Customer Rate: ${a.repeatRate.toFixed(1)}%
+- Avg Customer LTV: ${fmt(a.avgLTV)}
+- Products: ${a.products.length} (${top3prod})
+- Top Customers: ${top3cust||'no customer column'}
+- Top Regions: ${top3reg||'no region column'}
+- Monthly Trend: ${monthly||'no date column'}`;
+}
+
+async function callGemini(question) {
+  const key = getGeminiKey();
+  if (!key) return null;
+  const ctx = buildGeminiContext();
+  const prompt = `You are BusinessBrain AI, an expert business intelligence advisor.
+You have access to the user's real business data:
+
+${ctx}
+
+Rules:
+- Be concise (max 4 sentences), data-driven, and specific to the numbers above
+- Use the same currency format you see in the data
+- Give ONE clear, actionable recommendation per response
+- Never make up numbers — only use the data provided
+- If asked "what should I do?", give a ranked priority list
+
+User question: ${question}`;
+  return await callGeminiRaw(prompt);
+}
+
+// ─── AI SEND (Gemini-powered with local fallback) ─────────────────
+async function aiSend() {
+  const inp = document.getElementById('ai-chat-input');
+  const q = inp.value.trim(); if (!q) return;
+  appendAIMsg(q, 'user', 'ai-chat-messages');
+  inp.value = '';
+  showTypingIn('ai-chat-messages');
+  const btn = document.getElementById('ai-send-btn');
+  if (btn) { btn.disabled=true; btn.textContent='…'; }
+
+  try {
+    let response = null;
+    const key = getGeminiKey();
+    if (key) {
+      try { response = await callGemini(q); }
+      catch(e) { console.warn('Gemini error, falling back:', e.message); }
+    }
+    if (!response) response = getAIResponse(q);
+    removeTypingFrom('ai-chat-messages');
+    appendAIMsg(response, 'ai', 'ai-chat-messages');
+  } catch(e) {
+    removeTypingFrom('ai-chat-messages');
+    appendAIMsg('Sorry, something went wrong. ' + e.message, 'ai', 'ai-chat-messages');
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='Send ✦'; }
+  }
+}
+
+function quickAsk(btn) {
+  document.getElementById('ai-chat-input').value=btn.textContent; aiSend();
+}
+
+// Init Gemini UI on load
+function initGeminiUI() {
+  const key = getGeminiKey();
+  if (key) {
+    const el = document.getElementById('gemini-key-input');
+    if (el) el.value = key;
+    updateGeminiUI(true);
+  }
+}
+initGeminiUI();
+
+// ─── CHART DEFAULTS ─────────────────────────────────────────────
+function chartOpts() {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    animation:{duration:550,easing:'easeInOutQuart'},
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{labels:{color:'#94a3b8',font:{family:'Inter',size:11},boxWidth:10,boxHeight:10}},
+      tooltip:{backgroundColor:'rgba(8,12,20,.95)',borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+        titleColor:'#f1f5f9',bodyColor:'#94a3b8',padding:11,
+        callbacks:{label:c=>` ${fmt(c.parsed.y)}`}}
+    },
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#475569',font:{family:'Inter',size:10}}},
+      y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#475569',font:{family:'Inter',size:10},callback:v=>fmt(v)}}
+    }
+  };
+}
+
+// Init: start on dashboard
+nav('dashboard', document.getElementById('nav-dashboard'));
+</script>
+</body>
+</html>
